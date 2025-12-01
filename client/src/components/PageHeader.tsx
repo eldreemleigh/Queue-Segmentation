@@ -26,19 +26,19 @@ export default function PageHeader({ teamAvatar, onTeamAvatarChange }: PageHeade
   };
 
   return (
-    <header className="border-b bg-gradient-to-r from-card to-card/95 shadow-sm" data-testid="page-header">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-10">
-        <div className="flex items-center gap-4 mb-6">
+    <header className="border-b border-border/40 bg-gradient-to-br from-background via-card to-background shadow-md" data-testid="page-header">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
+        <div className="flex items-center gap-5 mb-6">
           <button
             onClick={handleButtonClick}
-            className="flex-shrink-0 p-3 rounded-xl bg-primary/15 hover-elevate transition-all"
+            className="flex-shrink-0 p-3 rounded-xl bg-gradient-to-br from-primary/18 to-primary/8 hover-elevate transition-all duration-200 border border-primary/15"
             title="Click to upload team avatar"
             data-testid="button-upload-team-avatar"
           >
             {teamAvatar ? (
-              <img src={teamAvatar} alt="Team" className="h-12 w-12 rounded-lg object-cover" data-testid="img-team-avatar" />
+              <img src={teamAvatar} alt="Team" className="h-14 w-14 rounded-lg object-cover shadow-sm" data-testid="img-team-avatar" />
             ) : (
-              <Users className="h-12 w-12 text-primary" />
+              <Users className="h-14 w-14 text-primary" />
             )}
           </button>
           <input
@@ -50,15 +50,15 @@ export default function PageHeader({ teamAvatar, onTeamAvatarChange }: PageHeade
             data-testid="input-team-avatar"
           />
           <div className="flex-1">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-primary" data-testid="text-app-title">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-primary" data-testid="text-app-title">
               TEAM ABBEY
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground font-medium mt-1" data-testid="text-app-subtitle">
+            <p className="text-sm md:text-base text-muted-foreground font-semibold mt-2 tracking-wide" data-testid="text-app-subtitle">
               Queue Segmentation Generator
             </p>
           </div>
         </div>
-        <p className="text-muted-foreground text-sm md:text-base leading-relaxed pl-0" data-testid="text-app-description">
+        <p className="text-muted-foreground text-sm md:text-base leading-relaxed font-medium" data-testid="text-app-description">
           Automatic, fair, randomized hourly segmentation.
         </p>
       </div>

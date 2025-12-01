@@ -626,10 +626,10 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <PageHeader teamAvatar={teamAvatar} onTeamAvatarChange={setTeamAvatar} />
       
-      <main className="max-w-7xl mx-auto px-6 md:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-6 md:px-8 py-12">
         <SectionCard sectionNumber={1} title="Attendance">
           <AttendanceTable
             agents={agents}
