@@ -114,11 +114,18 @@ function isAgentOnBreak(
   return false;
 }
 
+function getPhilippinesTime(): Date {
+  const now = new Date();
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+  const phTime = new Date(utcTime + (8 * 60 * 60 * 1000));
+  return phTime;
+}
+
 function removeExpiredBreaks(
   breakTimes: Record<string, AgentBreakTime>
 ): Record<string, AgentBreakTime> {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const phTime = getPhilippinesTime();
+  const currentMinutes = phTime.getHours() * 60 + phTime.getMinutes();
   
   const updated: Record<string, AgentBreakTime> = {};
   

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -44,6 +44,13 @@ const BREAK_TYPES = [
   { name: "Lunch Break", defaultStart: "12:00 PM", defaultEnd: "1:00 PM" },
   { name: "Late Break", defaultStart: "4:00 PM", defaultEnd: "4:15 PM" },
 ];
+
+function getPhilippinesTime(): Date {
+  const now = new Date();
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+  const phTime = new Date(utcTime + (8 * 60 * 60 * 1000));
+  return phTime;
+}
 
 function TimeSelect({ 
   value, 
@@ -293,6 +300,43 @@ function AgentBreaksCell({
   );
 }
 
+function CurrentTimeDisplay() {
+  const [currentTime, setCurrentTime] = useState(() => {
+    const ph = getPhilippinesTime();
+    return ph.toLocaleTimeString("en-US", { 
+      hour: "2-digit", 
+      minute: "2-digit", 
+      second: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Manila"
+    });
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const ph = getPhilippinesTime();
+      setCurrentTime(
+        ph.toLocaleTimeString("en-US", { 
+          hour: "2-digit", 
+          minute: "2-digit", 
+          second: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Manila"
+        })
+      );
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <Clock className="h-4 w-4 text-primary" />
+      <span className="font-mono font-semibold text-primary">{currentTime}</span>
+      <span className="text-muted-foreground">(PHT)</span>
+    </div>
+  );
+}
+
 export default function BreakTimesTable({
   agents,
   breakTimes,
@@ -312,11 +356,14 @@ export default function BreakTimesTable({
 
   return (
     <div>
-      <div className="mb-4 p-3 bg-muted/50 rounded-md">
-        <p className="text-xs text-muted-foreground">
-          Configure break times for present agents. Set all three break times (Early Break, Lunch Break, Late Break) at once. 
-          Agents on break will NOT be assigned to any queue during their break period. Expired breaks are automatically removed.
-        </p>
+      <div className="mb-4 p-3 bg-muted/50 rounded-md space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Configure break times for present agents. Set all three break times (Early Break, Lunch Break, Late Break) at once. 
+            Agents on break will NOT be assigned to any queue during their break period. Expired breaks are automatically removed.
+          </p>
+          <CurrentTimeDisplay />
+        </div>
       </div>
       
       <ScrollArea className="w-full">
