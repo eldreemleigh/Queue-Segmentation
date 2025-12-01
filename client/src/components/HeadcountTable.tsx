@@ -188,6 +188,15 @@ export default function HeadcountTable({
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     {slot}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground h-8 w-8 ml-1"
+                      onClick={() => handleEditClick(slot)}
+                      data-testid={`button-edit-slot-${slot}`}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </TableCell>
                 {QUEUES.map((queue) => (
@@ -211,15 +220,6 @@ export default function HeadcountTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => handleEditClick(slot)}
-                      data-testid={`button-edit-slot-${slot}`}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
