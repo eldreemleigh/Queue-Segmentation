@@ -61,9 +61,14 @@ export interface SegmentationResult {
   warning?: string;
 }
 
+export interface BreakSlot {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
+}
+
 export interface AgentBreakTime {
   agentId: string;
-  earlyBreak: { start: string; end: string } | null;
-  mealBreak: { start: string; end: string } | null;
-  lateBreak: { start: string; end: string } | null;
+  breaks: BreakSlot[];
 }

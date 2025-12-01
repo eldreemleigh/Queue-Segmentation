@@ -12,6 +12,7 @@ import {
   Agent,
   AgentStatus,
   AgentBreakTime,
+  BreakSlot,
   HeadcountData,
   SegmentationResult,
   QUEUES,
@@ -43,6 +44,74 @@ function initHeadcount(slots: string[]): HeadcountData {
     });
   });
   return data;
+}
+
+function parseTimeToMinutes(timeStr: string): number {
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  
+  return hours * 60 + minutes;
+}
+
+function parseSlotTimes(slot: string): { start: number; end: number } | null {
+  const parts = slot.split(" - ");
+  if (parts.length !== 2) return null;
+  
+  const startMatch = parts[0].match(/(\d+):(\d+)/);
+  const endMatch = parts[1].match(/(\d+):(\d+)/);
+  
+  if (!startMatch || !endMatch) return null;
+  
+  let startHour = parseInt(startMatch[1], 10);
+  let endHour = parseInt(endMatch[1], 10);
+  const startMin = parseInt(startMatch[2], 10);
+  const endMin = parseInt(endMatch[2], 10);
+  
+  if (startHour >= 10 && startHour <= 12) {
+    if (startHour === 12) startHour = 12;
+  } else if (startHour >= 1 && startHour <= 9) {
+    startHour += 12;
+  }
+  
+  if (endHour >= 10 && endHour <= 12) {
+    if (endHour === 12) endHour = 12;
+  } else if (endHour >= 1 && endHour <= 9) {
+    endHour += 12;
+  }
+  
+  return {
+    start: startHour * 60 + startMin,
+    end: endHour * 60 + endMin,
+  };
+}
+
+function isAgentOnBreak(
+  agentId: string,
+  slot: string,
+  breakTimes: Record<string, AgentBreakTime>
+): boolean {
+  const agentBreaks = breakTimes[agentId];
+  if (!agentBreaks || agentBreaks.breaks.length === 0) return false;
+  
+  const slotTimes = parseSlotTimes(slot);
+  if (!slotTimes) return false;
+  
+  for (const breakSlot of agentBreaks.breaks) {
+    const breakStart = parseTimeToMinutes(breakSlot.start);
+    const breakEnd = parseTimeToMinutes(breakSlot.end);
+    
+    if (breakStart < slotTimes.end && breakEnd > slotTimes.start) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 export default function Home() {
@@ -100,27 +169,14 @@ export default function Home() {
     });
   };
 
-  const handleBreakTimeChange = (
-    agentId: string,
-    breakType: "earlyBreak" | "mealBreak" | "lateBreak",
-    start: string,
-    end: string
-  ) => {
-    setBreakTimes((prev) => {
-      const existing = prev[agentId] || {
+  const handleBreakChange = (agentId: string, breaks: BreakSlot[]) => {
+    setBreakTimes((prev) => ({
+      ...prev,
+      [agentId]: {
         agentId,
-        earlyBreak: null,
-        mealBreak: null,
-        lateBreak: null,
-      };
-      return {
-        ...prev,
-        [agentId]: {
-          ...existing,
-          [breakType]: { start, end },
-        },
-      };
-    });
+        breaks,
+      },
+    }));
   };
 
   const handleHeadcountChange = (slot: string, queue: string, value: number) => {
@@ -183,17 +239,26 @@ export default function Home() {
           return;
         }
 
-        if (totalReq > agentsCopy.length) {
+        const availableAgents = agentsCopy.filter(
+          (a) => !isAgentOnBreak(a.id, slot, breakTimes)
+        );
+
+        const onBreakAgents = agentsCopy.filter(
+          (a) => isAgentOnBreak(a.id, slot, breakTimes)
+        );
+
+        if (totalReq > availableAgents.length) {
+          const breakNames = onBreakAgents.map((a) => a.nickname).join(", ");
           newResults.push({
             slot,
             totalRequired: totalReq,
             assignments: {},
-            warning: `${slot}: Insufficient agents (Required: ${totalReq}, Available: ${agentsCopy.length})`,
+            warning: `${slot}: Insufficient agents (Required: ${totalReq}, Available: ${availableAgents.length})${onBreakAgents.length > 0 ? ` - On break: ${breakNames}` : ""}`,
           });
           return;
         }
 
-        const sorted = [...agentsCopy].sort(
+        const sorted = [...availableAgents].sort(
           (a, b) => a.total - b.total || Math.random() - 0.5
         );
 
@@ -283,7 +348,7 @@ export default function Home() {
           <BreakTimesTable
             agents={agents}
             breakTimes={breakTimes}
-            onBreakTimeChange={handleBreakTimeChange}
+            onBreakChange={handleBreakChange}
           />
         </SectionCard>
 

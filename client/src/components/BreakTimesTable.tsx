@@ -14,19 +14,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Coffee, UtensilsCrossed, Clock } from "lucide-react";
-import { Agent, AgentBreakTime } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Coffee, Clock, Plus, Trash2 } from "lucide-react";
+import { Agent, AgentBreakTime, BreakSlot } from "@/lib/types";
 
 interface BreakTimesTableProps {
   agents: Agent[];
   breakTimes: Record<string, AgentBreakTime>;
-  onBreakTimeChange: (agentId: string, breakType: "earlyBreak" | "mealBreak" | "lateBreak", start: string, end: string) => void;
+  onBreakChange: (agentId: string, breaks: BreakSlot[]) => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
 const PERIODS = ["AM", "PM"];
 
 function TimeSelect({ 
@@ -41,7 +52,7 @@ function TimeSelect({
   const parseTime = (timeStr: string) => {
     const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
     if (match) {
-      return { hour: match[1], minute: match[2], period: match[3].toUpperCase() };
+      return { hour: match[1], minute: match[2].padStart(2, "0"), period: match[3].toUpperCase() };
     }
     return { hour: "10", minute: "00", period: "AM" };
   };
@@ -58,7 +69,7 @@ function TimeSelect({
   return (
     <div className="flex items-center gap-1">
       <Select value={hour} onValueChange={(v) => handleChange(v, undefined, undefined)}>
-        <SelectTrigger className="w-[52px] h-8 text-xs" data-testid={`${testIdPrefix}-hour`}>
+        <SelectTrigger className="w-[48px] h-7 text-xs px-2" data-testid={`${testIdPrefix}-hour`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -71,10 +82,10 @@ function TimeSelect({
       </Select>
       <span className="text-muted-foreground text-xs">:</span>
       <Select value={minute} onValueChange={(v) => handleChange(undefined, v, undefined)}>
-        <SelectTrigger className="w-[52px] h-8 text-xs" data-testid={`${testIdPrefix}-minute`}>
+        <SelectTrigger className="w-[48px] h-7 text-xs px-2" data-testid={`${testIdPrefix}-minute`}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-[200px]">
           {MINUTES.map((m) => (
             <SelectItem key={m} value={m}>
               {m}
@@ -83,7 +94,7 @@ function TimeSelect({
         </SelectContent>
       </Select>
       <Select value={period} onValueChange={(v) => handleChange(undefined, undefined, v)}>
-        <SelectTrigger className="w-[52px] h-8 text-xs" data-testid={`${testIdPrefix}-period`}>
+        <SelectTrigger className="w-[48px] h-7 text-xs px-2" data-testid={`${testIdPrefix}-period`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -98,48 +109,223 @@ function TimeSelect({
   );
 }
 
-function BreakTimeCell({
+function BreakRow({
   agentId,
-  breakType,
-  breakData,
-  onBreakTimeChange,
-  icon: Icon,
-  duration,
+  breakSlot,
+  onUpdate,
+  onDelete,
 }: {
   agentId: string;
-  breakType: "earlyBreak" | "mealBreak" | "lateBreak";
-  breakData: { start: string; end: string } | null;
-  onBreakTimeChange: (agentId: string, breakType: "earlyBreak" | "mealBreak" | "lateBreak", start: string, end: string) => void;
-  icon: typeof Coffee;
-  duration: string;
+  breakSlot: BreakSlot;
+  onUpdate: (updated: BreakSlot) => void;
+  onDelete: () => void;
 }) {
-  const defaultStart = breakType === "earlyBreak" ? "11:00 AM" : breakType === "mealBreak" ? "12:00 PM" : "4:00 PM";
-  const defaultEnd = breakType === "earlyBreak" ? "11:15 AM" : breakType === "mealBreak" ? "1:00 PM" : "4:15 PM";
-  
-  const start = breakData?.start || defaultStart;
-  const end = breakData?.end || defaultEnd;
+  return (
+    <div className="flex items-center gap-2 py-1.5 px-2 bg-muted/30 rounded-md">
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+        {breakSlot.name}
+      </Badge>
+      <TimeSelect
+        value={breakSlot.start}
+        onChange={(newStart) => onUpdate({ ...breakSlot, start: newStart })}
+        testIdPrefix={`select-break-start-${agentId}-${breakSlot.id}`}
+      />
+      <span className="text-muted-foreground text-xs">to</span>
+      <TimeSelect
+        value={breakSlot.end}
+        onChange={(newEnd) => onUpdate({ ...breakSlot, end: newEnd })}
+        testIdPrefix={`select-break-end-${agentId}-${breakSlot.id}`}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 shrink-0"
+        onClick={onDelete}
+        data-testid={`button-delete-break-${agentId}-${breakSlot.id}`}
+      >
+        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+      </Button>
+    </div>
+  );
+}
+
+function AgentBreaksCell({
+  agent,
+  breaks,
+  onBreakChange,
+}: {
+  agent: Agent;
+  breaks: BreakSlot[];
+  onBreakChange: (breaks: BreakSlot[]) => void;
+}) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [breakName, setBreakName] = useState("Break");
+  const [startHour, setStartHour] = useState("11");
+  const [startMinute, setStartMinute] = useState("00");
+  const [startPeriod, setStartPeriod] = useState("AM");
+  const [endHour, setEndHour] = useState("11");
+  const [endMinute, setEndMinute] = useState("15");
+  const [endPeriod, setEndPeriod] = useState("AM");
+
+  const handleAddBreak = () => {
+    const newBreak: BreakSlot = {
+      id: crypto.randomUUID(),
+      name: breakName || "Break",
+      start: `${startHour}:${startMinute} ${startPeriod}`,
+      end: `${endHour}:${endMinute} ${endPeriod}`,
+    };
+    onBreakChange([...breaks, newBreak]);
+    setIsDialogOpen(false);
+    setBreakName("Break");
+  };
+
+  const handleUpdateBreak = (updatedBreak: BreakSlot) => {
+    onBreakChange(breaks.map((b) => (b.id === updatedBreak.id ? updatedBreak : b)));
+  };
+
+  const handleDeleteBreak = (breakId: string) => {
+    onBreakChange(breaks.filter((b) => b.id !== breakId));
+  };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-          {duration}
-        </Badge>
-      </div>
-      <div className="flex items-center gap-1">
-        <TimeSelect
-          value={start}
-          onChange={(newStart) => onBreakTimeChange(agentId, breakType, newStart, end)}
-          testIdPrefix={`select-${breakType}-start-${agentId}`}
-        />
-        <span className="text-muted-foreground text-xs px-1">to</span>
-        <TimeSelect
-          value={end}
-          onChange={(newEnd) => onBreakTimeChange(agentId, breakType, start, newEnd)}
-          testIdPrefix={`select-${breakType}-end-${agentId}`}
-        />
-      </div>
+    <div className="space-y-2">
+      {breaks.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No breaks scheduled</p>
+      ) : (
+        <div className="space-y-1.5">
+          {breaks.map((breakSlot) => (
+            <BreakRow
+              key={breakSlot.id}
+              agentId={agent.id}
+              breakSlot={breakSlot}
+              onUpdate={handleUpdateBreak}
+              onDelete={() => handleDeleteBreak(breakSlot.id)}
+            />
+          ))}
+        </div>
+      )}
+      
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs"
+        onClick={() => setIsDialogOpen(true)}
+        data-testid={`button-add-break-${agent.id}`}
+      >
+        <Plus className="h-3 w-3 mr-1" />
+        Add Break
+      </Button>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Break for {agent.nickname}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Break Name</Label>
+              <Input
+                value={breakName}
+                onChange={(e) => setBreakName(e.target.value)}
+                placeholder="e.g., Early Break, Meal Break"
+                data-testid={`input-break-name-${agent.id}`}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Start Time</Label>
+              <div className="flex items-center gap-1">
+                <Select value={startHour} onValueChange={setStartHour}>
+                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-start-hour-${agent.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-muted-foreground">:</span>
+                <Select value={startMinute} onValueChange={setStartMinute}>
+                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-start-minute-${agent.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={startPeriod} onValueChange={setStartPeriod}>
+                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-start-period-${agent.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>End Time</Label>
+              <div className="flex items-center gap-1">
+                <Select value={endHour} onValueChange={setEndHour}>
+                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-end-hour-${agent.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-muted-foreground">:</span>
+                <Select value={endMinute} onValueChange={setEndMinute}>
+                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-end-minute-${agent.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={endPeriod} onValueChange={setEndPeriod}>
+                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-end-period-${agent.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" data-testid={`button-cancel-break-${agent.id}`}>Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleAddBreak} data-testid={`button-confirm-break-${agent.id}`}>
+              Add Break
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -147,7 +333,7 @@ function BreakTimeCell({
 export default function BreakTimesTable({
   agents,
   breakTimes,
-  onBreakTimeChange,
+  onBreakChange,
 }: BreakTimesTableProps) {
   const presentAgents = agents.filter((a) => a.status === "PRESENT");
 
@@ -165,8 +351,8 @@ export default function BreakTimesTable({
     <div>
       <div className="mb-4 p-3 bg-muted/50 rounded-md">
         <p className="text-xs text-muted-foreground">
-          Configure break times for each agent to avoid scheduling them during difficult queues (PGC) when on break. 
-          Agents on break will be prioritized for easier queues like SV NPGC.
+          Configure break times for each agent. Agents on break will NOT be assigned to any queue during their break period. 
+          Add custom breaks with exact minute precision (e.g., 11:34 AM).
         </p>
       </div>
       
@@ -175,71 +361,32 @@ export default function BreakTimesTable({
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="font-semibold text-xs w-[180px]">Agent</TableHead>
-              <TableHead className="font-semibold text-xs text-center">
-                <div className="flex items-center justify-center gap-2">
+              <TableHead className="font-semibold text-xs">
+                <div className="flex items-center gap-2">
                   <Coffee className="h-4 w-4" />
-                  <span>Early Break (15 min)</span>
-                </div>
-              </TableHead>
-              <TableHead className="font-semibold text-xs text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <UtensilsCrossed className="h-4 w-4" />
-                  <span>Meal Break (1 hour)</span>
-                </div>
-              </TableHead>
-              <TableHead className="font-semibold text-xs text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <Coffee className="h-4 w-4" />
-                  <span>Late Break (15 min)</span>
+                  <span>Break Schedule</span>
                 </div>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {presentAgents.map((agent) => {
-              const agentBreaks = breakTimes[agent.id] || {
-                agentId: agent.id,
-                earlyBreak: null,
-                mealBreak: null,
-                lateBreak: null,
-              };
+              const agentBreakData = breakTimes[agent.id];
+              const breaks = agentBreakData?.breaks || [];
               
               return (
                 <TableRow key={agent.id} data-testid={`row-break-${agent.id}`}>
-                  <TableCell className="font-medium text-sm">
+                  <TableCell className="font-medium text-sm align-top">
                     <div>
                       <div className="font-medium">{agent.nickname}</div>
                       <div className="text-xs text-muted-foreground">{agent.name}</div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <BreakTimeCell
-                      agentId={agent.id}
-                      breakType="earlyBreak"
-                      breakData={agentBreaks.earlyBreak}
-                      onBreakTimeChange={onBreakTimeChange}
-                      icon={Coffee}
-                      duration="15 min"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <BreakTimeCell
-                      agentId={agent.id}
-                      breakType="mealBreak"
-                      breakData={agentBreaks.mealBreak}
-                      onBreakTimeChange={onBreakTimeChange}
-                      icon={UtensilsCrossed}
-                      duration="1 hour"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <BreakTimeCell
-                      agentId={agent.id}
-                      breakType="lateBreak"
-                      breakData={agentBreaks.lateBreak}
-                      onBreakTimeChange={onBreakTimeChange}
-                      icon={Coffee}
-                      duration="15 min"
+                    <AgentBreaksCell
+                      agent={agent}
+                      breaks={breaks}
+                      onBreakChange={(newBreaks) => onBreakChange(agent.id, newBreaks)}
                     />
                   </TableCell>
                 </TableRow>
