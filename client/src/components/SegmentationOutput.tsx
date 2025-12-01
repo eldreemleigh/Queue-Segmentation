@@ -102,17 +102,17 @@ export default function SegmentationOutput({
           {isCopying ? "Copying..." : "Copy as Image"}
         </Button>
       </div>
-      <ScrollArea className="w-full rounded-lg border border-border/60" ref={tableRef}>
+      <ScrollArea className="w-full rounded-lg border-2 border-border/70" ref={tableRef}>
         <Table className="border-collapse" data-testid="table-segmentation">
         <TableHeader>
-          <TableRow className="bg-primary/8 hover:bg-primary/8 border-b-2 border-border/80">
-            <TableHead className="min-w-[120px] sticky left-0 bg-primary/8 z-10 border-r border-border/60 font-semibold text-foreground">Time</TableHead>
-            <TableHead className="min-w-[60px] text-center border-r border-border/60 font-semibold text-foreground">Total</TableHead>
+          <TableRow className="bg-primary/8 hover:bg-primary/8 border-b-4 border-border/85">
+            <TableHead className="min-w-[120px] sticky left-0 bg-primary/8 z-10 border-r-2 border-border/70 font-semibold text-foreground">Time</TableHead>
+            <TableHead className="min-w-[60px] text-center border-r-2 border-border/70 font-semibold text-foreground">Total</TableHead>
             {QUEUES.map((queue, idx) => (
               <TableHead 
                 key={queue} 
                 className={`min-w-[100px] text-center font-semibold text-foreground ${
-                  idx === QUEUES.length - 1 ? "" : "border-r border-border/60"
+                  idx === QUEUES.length - 1 ? "" : "border-r-2 border-border/70"
                 }`}
               >
                 {queue}
@@ -123,7 +123,7 @@ export default function SegmentationOutput({
         <TableBody>
           {results.map((result) =>
             result.warning ? (
-              <TableRow key={result.slot} className="bg-destructive/8 hover:bg-destructive/12 border-b border-border/60" data-testid={`row-warning-${result.slot}`}>
+              <TableRow key={result.slot} className="bg-destructive/8 hover:bg-destructive/12 border-b-2 border-border/70" data-testid={`row-warning-${result.slot}`}>
                 <TableCell
                   colSpan={2 + QUEUES.length}
                   className="py-4"
@@ -135,25 +135,25 @@ export default function SegmentationOutput({
                 </TableCell>
               </TableRow>
             ) : (
-              <TableRow key={result.slot} className="border-b border-border/50 hover:bg-muted/50" data-testid={`row-result-${result.slot}`}>
-                <TableCell className="font-medium sticky left-0 bg-card z-10 border-r border-border/60" data-testid={`text-slot-${result.slot}`}>
+              <TableRow key={result.slot} className="border-b-2 border-border/60 hover:bg-muted/50" data-testid={`row-result-${result.slot}`}>
+                <TableCell className="font-medium sticky left-0 bg-card z-10 border-r-2 border-border/70" data-testid={`text-slot-${result.slot}`}>
                   <div className="flex items-center gap-2">
                     {result.locked && <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />}
                     {result.slot}
                   </div>
                 </TableCell>
-                <TableCell className="text-center font-semibold border-r border-border/60" data-testid={`text-total-req-${result.slot}`}>
+                <TableCell className="text-center font-semibold border-r-2 border-border/70" data-testid={`text-total-req-${result.slot}`}>
                   {result.totalRequired}
                 </TableCell>
                 {QUEUES.map((queue, idx) => (
                   <TableCell 
                     key={queue} 
-                    className={`text-center py-3 ${idx === QUEUES.length - 1 ? "" : "border-r border-border/60"}`}
+                    className={`text-center py-3 ${idx === QUEUES.length - 1 ? "" : "border-r-2 border-border/70"}`}
                     data-testid={`text-assignments-${result.slot}-${queue}`}
                   >
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col divide-y divide-border/50">
                       {result.assignments[queue]?.map((nickname, idx) => (
-                        <span key={idx} className="text-sm font-medium">
+                        <span key={idx} className="text-sm font-medium py-1 first:pt-0 last:pb-0">
                           {nickname}
                         </span>
                       ))}
