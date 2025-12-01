@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, Plus, UserPlus } from "lucide-react";
+import { Trash2, Plus, UserPlus, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +46,7 @@ interface AttendanceTableProps {
   onStatusChange: (agentId: string, status: AgentStatus) => void;
   onAddAgent: (agent: Omit<Agent, "id" | "assignments" | "total">) => void;
   onDeleteAgent: (agentId: string) => void;
+  onEditAgent: (agentId: string, agent: Omit<Agent, "id" | "assignments" | "total" | "status">) => void;
 }
 
 export default function AttendanceTable({
@@ -53,6 +54,7 @@ export default function AttendanceTable({
   onStatusChange,
   onAddAgent,
   onDeleteAgent,
+  onEditAgent,
 }: AttendanceTableProps) {
   const [newAgent, setNewAgent] = useState({
     name: "",
@@ -61,6 +63,8 @@ export default function AttendanceTable({
     status: "PRESENT" as AgentStatus,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const handleAddAgent = () => {
     if (newAgent.name.trim() && newAgent.nickname.trim()) {
@@ -72,6 +76,23 @@ export default function AttendanceTable({
         status: "PRESENT",
       });
       setIsDialogOpen(false);
+    }
+  };
+
+  const handleEditClick = (agent: Agent) => {
+    setEditingAgent(agent);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingAgent && editingAgent.name.trim() && editingAgent.nickname.trim()) {
+      onEditAgent(editingAgent.id, {
+        name: editingAgent.name,
+        nickname: editingAgent.nickname,
+        restDays: editingAgent.restDays,
+      });
+      setIsEditDialogOpen(false);
+      setEditingAgent(null);
     }
   };
 
@@ -145,36 +166,47 @@ export default function AttendanceTable({
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-muted-foreground"
-                        data-testid={`button-delete-agent-${agent.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Agent</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to remove {agent.name} from the roster? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => onDeleteAgent(agent.id)}
-                          className="bg-destructive text-destructive-foreground"
-                          data-testid="button-confirm-delete"
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => handleEditClick(agent)}
+                      data-testid={`button-edit-agent-${agent.id}`}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-muted-foreground"
+                          data-testid={`button-delete-agent-${agent.id}`}
                         >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove {agent.name} from the roster? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => onDeleteAgent(agent.id)}
+                            className="bg-destructive text-destructive-foreground"
+                            data-testid="button-confirm-delete"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -266,6 +298,65 @@ export default function AttendanceTable({
             <Button onClick={handleAddAgent} data-testid="button-submit-add-agent">
               <Plus className="h-4 w-4 mr-2" />
               Add Agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Agent</DialogTitle>
+          </DialogHeader>
+          {editingAgent && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <Input
+                  id="edit-name"
+                  placeholder="LASTNAME, FIRSTNAME"
+                  value={editingAgent.name}
+                  onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })}
+                  data-testid="input-edit-agent-name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-nickname">Nickname</Label>
+                <Input
+                  id="edit-nickname"
+                  placeholder="Nickname"
+                  value={editingAgent.nickname}
+                  onChange={(e) => setEditingAgent({ ...editingAgent, nickname: e.target.value })}
+                  data-testid="input-edit-agent-nickname"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-restDays">Rest Days</Label>
+                <Select
+                  value={editingAgent.restDays}
+                  onValueChange={(value) => setEditingAgent({ ...editingAgent, restDays: value })}
+                >
+                  <SelectTrigger data-testid="select-edit-agent-rd">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REST_DAY_OPTIONS.map((rd) => (
+                      <SelectItem key={rd} value={rd}>
+                        {rd}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-cancel-edit-agent">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveEdit} data-testid="button-submit-edit-agent">
+              <Edit2 className="h-4 w-4 mr-2" />
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

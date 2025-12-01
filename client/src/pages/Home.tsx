@@ -201,6 +201,24 @@ export default function Home() {
     });
   };
 
+  const handleEditAgent = (agentId: string, updatedAgent: Omit<Agent, "id" | "assignments" | "total" | "status">) => {
+    setAgents((prev) =>
+      prev.map((a) => {
+        if (a.id === agentId) {
+          return {
+            ...a,
+            ...updatedAgent,
+          };
+        }
+        return a;
+      })
+    );
+    toast({
+      title: "Agent Updated",
+      description: `${updatedAgent.nickname} has been updated.`,
+    });
+  };
+
   const handleBreakChange = (agentId: string, breaks: BreakSlot[]) => {
     setBreakTimes((prev) => ({
       ...prev,
@@ -389,6 +407,7 @@ export default function Home() {
             onStatusChange={handleStatusChange}
             onAddAgent={handleAddAgent}
             onDeleteAgent={handleDeleteAgent}
+            onEditAgent={handleEditAgent}
           />
         </SectionCard>
 
