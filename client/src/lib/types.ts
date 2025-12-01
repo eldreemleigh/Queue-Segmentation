@@ -1,4 +1,4 @@
-export type AgentStatus = "PRESENT" | "OFF" | "ABSENT" | "PTO" | "RDOT" | "RD SWAP" | "SME";
+export type AgentStatus = "N/A" | "PRESENT" | "OFF" | "ABSENT" | "PTO" | "RDOT" | "RD SWAP" | "SME";
 
 export interface Agent {
   id: string;
@@ -30,6 +30,7 @@ export const DEFAULT_TIME_SLOTS = [
 export type TimeSlot = string;
 
 export const AGENT_STATUSES: AgentStatus[] = [
+  "N/A",
   "PRESENT",
   "OFF",
   "ABSENT",

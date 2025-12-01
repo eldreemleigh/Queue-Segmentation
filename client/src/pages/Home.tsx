@@ -364,7 +364,7 @@ export default function Home() {
     setAgents((prev) =>
       prev.map((a) => ({
         ...a,
-        status: "PRESENT" as AgentStatus,
+        status: "N/A" as AgentStatus,
         assignments: {},
         total: 0,
       }))
@@ -373,7 +373,7 @@ export default function Home() {
     setHasGenerated(false);
     toast({
       title: "All Statuses Reset",
-      description: "All agents have been set to PRESENT status.",
+      description: "All agents have been set to N/A status.",
     });
   };
 
