@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, Plus, UserPlus, Edit2 } from "lucide-react";
+import { Trash2, Plus, UserPlus, Edit2, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,6 +47,8 @@ interface AttendanceTableProps {
   onAddAgent: (agent: Omit<Agent, "id" | "assignments" | "total">) => void;
   onDeleteAgent: (agentId: string) => void;
   onEditAgent: (agentId: string, agent: Omit<Agent, "id" | "assignments" | "total" | "status">) => void;
+  onMoveAgentUp: (agentId: string) => void;
+  onMoveAgentDown: (agentId: string) => void;
 }
 
 export default function AttendanceTable({
@@ -55,6 +57,8 @@ export default function AttendanceTable({
   onAddAgent,
   onDeleteAgent,
   onEditAgent,
+  onMoveAgentUp,
+  onMoveAgentDown,
 }: AttendanceTableProps) {
   const [newAgent, setNewAgent] = useState({
     name: "",
@@ -167,6 +171,26 @@ export default function AttendanceTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => onMoveAgentUp(agent.id)}
+                      disabled={agents.indexOf(agent) === 0}
+                      data-testid={`button-move-up-agent-${agent.id}`}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => onMoveAgentDown(agent.id)}
+                      disabled={agents.indexOf(agent) === agents.length - 1}
+                      data-testid={`button-move-down-agent-${agent.id}`}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
