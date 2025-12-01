@@ -36,9 +36,9 @@ export default function PageHeader({ teamAvatar, onTeamAvatarChange }: PageHeade
               data-testid="button-upload-team-avatar"
             >
               {teamAvatar ? (
-                <img src={teamAvatar} alt="Team" className="h-6 w-6 rounded" data-testid="img-team-avatar" />
+                <img src={teamAvatar} alt="Team" className="h-8 w-8 rounded" data-testid="img-team-avatar" />
               ) : (
-                <Users className="h-6 w-6 text-primary" />
+                <Users className="h-8 w-8 text-primary" />
               )}
             </button>
             <input
