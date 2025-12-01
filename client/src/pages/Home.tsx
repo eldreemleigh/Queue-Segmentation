@@ -13,7 +13,7 @@ import {
   HeadcountData,
   SegmentationResult,
   QUEUES,
-  TIME_SLOTS,
+  DEFAULT_TIME_SLOTS,
 } from "@/lib/types";
 
 // todo: remove mock functionality - initial agents
@@ -32,9 +32,9 @@ const INITIAL_AGENTS: Agent[] = [
   { id: "12", name: "ARAJA, EHRICA", nickname: "Ehrica", restDays: "Tue-Wed", status: "PRESENT", assignments: {}, total: 0 },
 ];
 
-function initHeadcount(): HeadcountData {
+function initHeadcount(slots: string[]): HeadcountData {
   const data: HeadcountData = {};
-  TIME_SLOTS.forEach((slot) => {
+  slots.forEach((slot) => {
     data[slot] = {};
     QUEUES.forEach((queue) => {
       data[slot][queue] = 0;
@@ -46,7 +46,8 @@ function initHeadcount(): HeadcountData {
 export default function Home() {
   const { toast } = useToast();
   const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
-  const [headcountData, setHeadcountData] = useState<HeadcountData>(initHeadcount());
+  const [timeSlots, setTimeSlots] = useState<string[]>([...DEFAULT_TIME_SLOTS]);
+  const [headcountData, setHeadcountData] = useState<HeadcountData>(initHeadcount(DEFAULT_TIME_SLOTS));
   const [results, setResults] = useState<SegmentationResult[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -102,6 +103,34 @@ export default function Home() {
     }));
   };
 
+  const handleAddTimeSlot = (slot: string) => {
+    if (!timeSlots.includes(slot)) {
+      setTimeSlots((prev) => [...prev, slot]);
+      setHeadcountData((prev) => ({
+        ...prev,
+        [slot]: QUEUES.reduce((acc, q) => ({ ...acc, [q]: 0 }), {}),
+      }));
+      toast({
+        title: "Time Slot Added",
+        description: `${slot} has been added to the schedule.`,
+      });
+    }
+  };
+
+  const handleRemoveTimeSlot = (slot: string) => {
+    setTimeSlots((prev) => prev.filter((s) => s !== slot));
+    setHeadcountData((prev) => {
+      const { [slot]: _, ...rest } = prev;
+      return rest;
+    });
+    setResults([]);
+    setHasGenerated(false);
+    toast({
+      title: "Time Slot Removed",
+      description: `${slot} has been removed from the schedule.`,
+    });
+  };
+
   const generateSegmentation = () => {
     setIsGenerating(true);
     
@@ -116,7 +145,7 @@ export default function Home() {
 
       const newResults: SegmentationResult[] = [];
 
-      TIME_SLOTS.forEach((slot) => {
+      timeSlots.forEach((slot) => {
         const req = headcountData[slot];
         const totalReq = QUEUES.reduce((sum, q) => sum + (req[q] || 0), 0);
 
@@ -223,7 +252,10 @@ export default function Home() {
         <SectionCard sectionNumber={2} title="Required Headcount">
           <HeadcountTable
             headcountData={headcountData}
+            timeSlots={timeSlots}
             onHeadcountChange={handleHeadcountChange}
+            onAddTimeSlot={handleAddTimeSlot}
+            onRemoveTimeSlot={handleRemoveTimeSlot}
           />
         </SectionCard>
 

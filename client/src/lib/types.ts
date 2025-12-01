@@ -14,7 +14,7 @@ export type Queue = "PM PGC" | "SV PGC" | "LV PGC" | "PM NPGC" | "SV NPGC" | "LV
 
 export const QUEUES: Queue[] = ["PM PGC", "SV PGC", "LV PGC", "PM NPGC", "SV NPGC", "LV NPGC"];
 
-export const TIME_SLOTS = [
+export const DEFAULT_TIME_SLOTS = [
   "10:00 - 11:00",
   "11:00 - 12:00",
   "12:00 - 1:00",
@@ -24,9 +24,9 @@ export const TIME_SLOTS = [
   "4:00 - 5:00",
   "5:00 - 6:00",
   "6:00 - 7:00",
-] as const;
+];
 
-export type TimeSlot = (typeof TIME_SLOTS)[number];
+export type TimeSlot = string;
 
 export const AGENT_STATUSES: AgentStatus[] = [
   "PRESENT",
