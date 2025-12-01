@@ -168,6 +168,15 @@ export default function Home() {
       return INITIAL_AGENTS;
     }
   });
+
+  const [teamAvatar, setTeamAvatar] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_teamAvatar");
+      return saved ? saved : "";
+    } catch {
+      return "";
+    }
+  });
   
   const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>(() => {
     try {
@@ -284,6 +293,10 @@ export default function Home() {
     localStorage.setItem("qsg_lockedSlots", JSON.stringify(Array.from(lockedSlots)));
   }, [lockedSlots]);
 
+  useEffect(() => {
+    localStorage.setItem("qsg_teamAvatar", teamAvatar);
+  }, [teamAvatar]);
+
   const handleStatusChange = (agentId: string, status: AgentStatus) => {
     setAgents((prev) =>
       prev.map((a) => {
@@ -344,6 +357,23 @@ export default function Home() {
     toast({
       title: "Agent Updated",
       description: `${updatedAgent.nickname} has been updated.`,
+    });
+  };
+
+  const handleResetAllStatuses = () => {
+    setAgents((prev) =>
+      prev.map((a) => ({
+        ...a,
+        status: "PRESENT" as AgentStatus,
+        assignments: {},
+        total: 0,
+      }))
+    );
+    setResults([]);
+    setHasGenerated(false);
+    toast({
+      title: "All Statuses Reset",
+      description: "All agents have been set to PRESENT status.",
     });
   };
 
@@ -597,7 +627,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader />
+      <PageHeader teamAvatar={teamAvatar} onTeamAvatarChange={setTeamAvatar} />
       
       <main className="max-w-7xl mx-auto px-6 md:px-8 py-8">
         <SectionCard sectionNumber={1} title="Attendance">
@@ -609,6 +639,7 @@ export default function Home() {
             onEditAgent={handleEditAgent}
             onMoveAgentUp={handleMoveAgentUp}
             onMoveAgentDown={handleMoveAgentDown}
+            onResetAllStatuses={handleResetAllStatuses}
           />
         </SectionCard>
 
@@ -642,9 +673,11 @@ export default function Home() {
           <SegmentationOutput results={results} hasGenerated={hasGenerated} />
         </SectionCard>
 
-        <SectionCard sectionNumber={5} title="Assignment History">
-          <HistoryTable agents={agents} />
-        </SectionCard>
+        {results.length > 0 && (
+          <SectionCard sectionNumber={5} title="Assignment History">
+            <HistoryTable agents={agents} />
+          </SectionCard>
+        )}
       </main>
     </div>
   );
