@@ -49,7 +49,7 @@ const PERIODS = ["AM", "PM"];
 export default function HeadcountTable({
   headcountData,
   timeSlots,
-  lockedSlots,
+  lockedSlots = new Set(),
   onHeadcountChange,
   onAddTimeSlot,
   onRemoveTimeSlot,

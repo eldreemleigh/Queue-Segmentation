@@ -477,8 +477,16 @@ export default function Home() {
       }));
 
       const newResults: SegmentationResult[] = [];
+      const lockedSlotsArray = Array.from(lockedSlots);
 
       timeSlots.forEach((slot) => {
+        // If this slot is already locked, keep the existing result
+        const existingLocked = results.find((r) => r.slot === slot && r.locked);
+        if (existingLocked) {
+          newResults.push(existingLocked);
+          return;
+        }
+
         const req = headcountData[slot];
         const totalReq = QUEUES.reduce((sum, q) => sum + (req[q] || 0), 0);
 
@@ -554,21 +562,29 @@ export default function Home() {
       );
 
       setResults(newResults);
-      setLockedSlots(new Set(newResults.map((r) => r.slot)));
+      const newLockedSlots = new Set(newResults.filter((r) => r.locked).map((r) => r.slot));
+      setLockedSlots(newLockedSlots);
       setHasGenerated(true);
       setIsGenerating(false);
 
       const warnings = newResults.filter((r) => r.warning).length;
+      const newlyGenerated = newResults.filter((r) => r.locked && !lockedSlotsArray.includes(r.slot)).length;
+      
       if (warnings > 0) {
         toast({
           title: "Segmentation Generated",
           description: `Generated with ${warnings} warning(s). Check the output for details.`,
           variant: "destructive",
         });
-      } else if (newResults.length > 0) {
+      } else if (newlyGenerated > 0) {
         toast({
           title: "Segmentation Generated",
-          description: "All time slots have been assigned successfully.",
+          description: `${newlyGenerated} new time slot(s) assigned. Previous assignments remain locked.`,
+        });
+      } else if (newResults.length > 0) {
+        toast({
+          title: "No New Assignments",
+          description: "All time slots already have locked assignments.",
         });
       } else {
         toast({
