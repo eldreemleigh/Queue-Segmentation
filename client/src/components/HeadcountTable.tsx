@@ -162,7 +162,7 @@ export default function HeadcountTable({
         <DialogTrigger asChild>
           <Button variant="outline" className="mt-4 gap-2" data-testid="button-add-timeslot">
             <Plus className="h-4 w-4" />
-            Add Time Slot
+            Add Custom Time Slot
           </Button>
         </DialogTrigger>
         <DialogContent>
