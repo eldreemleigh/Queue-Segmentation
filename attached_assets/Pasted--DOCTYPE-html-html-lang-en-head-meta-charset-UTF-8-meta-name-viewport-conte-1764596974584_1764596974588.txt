@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Queue Segmentation Generator</title>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --radius: 10px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        h1, h2 {
+            margin: 0 0 12px;
+            font-weight: 600;
+        }
+
+        h1 {
+            color: var(--primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn {
+            background: var(--success);
+            color: white;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: #1e7e34;
+        }
+
+        .warning {
+            background: #ffdddd !important;
+            color: #a40000;
+            font-weight: bold;
+        }
+
+        /* MOBILE RESPONSIVE */
+        @media(max-width: 768px) {
+            table {
+                font-size: 12px;
+            }
+            .btn {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="card">
+        <h1>TEAM ABBEY — Queue Segmentation Generator</h1>
+        <p>Automatic, fair, randomized hourly segmentation.</p>
+    </div>
+
+    <div class="card">
+        <h2>1. Attendance</h2>
+        <div id="attendanceTable"></div>
+    </div>
+
+    <div class="card">
+        <h2>2. Required Headcount</h2>
+        <div id="requiredHcInput"></div>
+    </div>
+
+    <div class="card">
+        <button class="btn" onclick="generateSegmentation()">Generate Segmentation</button>
+    </div>
+
+    <div class="card">
+        <h2>3. Segmentation Output</h2>
+        <div id="segmentationOutput">(Click the button above)</div>
+    </div>
+
+    <div class="card">
+        <h2>4. Assignment History</h2>
+        <div id="historyTable"></div>
+    </div>
+
+</div>
+
+<script>
+// ------------------ DATA STRUCTURES ------------------
+const masterAgents = [
+    { name:"MANILA, HAEROLD DHIN", nickname:"Haerold", rd:"Sun-Mon", status:"OFF", assignments:{}, total:0 },
+    { name:"PANGANIBAN, MATHEW", nickname:"Mathew", rd:"Sun-Mon", status:"OFF", assignments:{}, total:0 },
+    { name:"PALMA, JENNELYN", nickname:"Jennelyn", rd:"Sun-Mon", status:"OFF", assignments:{}, total:0 },
+    { name:"BALDO, CALEB JAMES", nickname:"Caleb", rd:"Sun-Mon", status:"OFF", assignments:{}, total:0 },
+    { name:"CASTILLA, GIN LAURENCE", nickname:"Gin", rd:"Sun-Mon", status:"OFF", assignments:{}, total:0 },
+    { name:"PRESTOZA, LYKA MARIE", nickname:"Lyka", rd:"Mon-Tue", status:"OFF", assignments:{}, total:0 },
+    { name:"LANOZA, JOHN RUSSEL", nickname:"Russel", rd:"Mon-Tue", status:"OFF", assignments:{}, total:0 },
+    { name:"TUBALLAS, JAMES VINCE", nickname:"James", rd:"Mon-Tue", status:"OFF", assignments:{}, total:0 },
+    { name:"KATIGBAK, LOVELY", nickname:"Lovely", rd:"Mon-Tue", status:"OFF", assignments:{}, total:0 },
+    { name:"RUBION, MOISES AARON", nickname:"Aaron", rd:"Tue-Wed", status:"OFF", assignments:{}, total:0 },
+    { name:"CONCEPCION, THELMA", nickname:"Thelma", rd:"Tue-Wed", status:"PRESENT", assignments:{}, total:0 },
+    { name:"ARAJA, EHRICA", nickname:"Ehrica", rd:"Tue-Wed", status:"PRESENT", assignments:{}, total:0 },
+];
+
+const timeSlots = [
+    "10:00 - 11:00","11:00 - 12:00","12:00 - 1:00","1:00 - 2:00","2:00 - 3:00","3:00 - 4:00","4:00 - 5:00","5:00 - 6:00"
+];
+
+const queues = ["PM PGC","SV PGC","LV PGC","PM NPGC","SV NPGC","LV NPGC"];
+
+let requiredHcData = {};
+
+// ------------------ RENDER FUNCTIONS ------------------
+function renderAttendance() {
+    let html = `<table><thead><tr>
+        <th>Name</th><th>Nick</th><th>RD</th><th>Status</th>
+    </tr></thead><tbody>`;
+
+    masterAgents.forEach((agent, i) => {
+        html += `<tr>
+            <td>${agent.name}</td>
+            <td>${agent.nickname}</td>
+            <td>${agent.rd}</td>
+            <td>
+                <select onchange="changeStatus(${i}, this.value)">
+                    <option ${agent.status==='PRESENT'?'selected':''}>PRESENT</option>
+                    <option ${agent.status==='OFF'?'selected':''}>OFF</option>
+                    <option ${agent.status==='ABSENT'?'selected':''}>ABSENT</option>
+                    <option ${agent.status==='PTO'?'selected':''}>PTO</option>
+                </select>
+            </td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    document.getElementById("attendanceTable").innerHTML = html;
+}
+
+function renderRequiredHC() {
+    let html = `<table><thead><tr>
+        <th>Time</th>${queues.map(q=>`<th>${q}</th>`).join('')}<th>Total</th>
+    </tr></thead><tbody>`;
+
+    timeSlots.forEach(slot => {
+        if (!requiredHcData[slot]) requiredHcData[slot] = {};
+        queues.forEach(q => requiredHcData[slot][q] = requiredHcData[slot][q]||0);
+
+        html += `<tr>
+            <td>${slot}</td>`;
+
+        queues.forEach(queue => {
+            const val = requiredHcData[slot][queue];
+            html += `<td><input type="number" min="0" value="${val}" style="width:50px" onchange="updateHC('${slot}','${queue}',this.value)"></td>`;
+        });
+
+        const total = queues.reduce((s,q)=>s+requiredHcData[slot][q],0);
+        html += `<td id="total-${slot}">${total}</td></tr>`;
+    });
+
+    html += `</tbody></table>`;
+    document.getElementById("requiredHcInput").innerHTML = html;
+}
+
+function renderHistory() {
+    let html = `<table><thead><tr><th>Agent</th>${queues.map(q=>`<th>${q}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+
+    masterAgents.forEach(agent => {
+        html += `<tr ${agent.status!=='PRESENT'? 'style="opacity:0.5"':''}>`;
+        html += `<td>${agent.nickname}</td>`;
+
+        queues.forEach(q => {
+            html += `<td>${agent.assignments[q]||0}</td>`;
+        });
+
+        html += `<td>${agent.total||0}</td>`;
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    document.getElementById("historyTable").innerHTML = html;
+}
+
+// ------------------ UPDATE FUNCTIONS ------------------
+function changeStatus(i, status) {
+    masterAgents[i].status = status;
+    // reset history when updating attendance
+    masterAgents.forEach(a=>{
+        a.total = 0;
+        queues.forEach(q=>a.assignments[q]=0);
+    });
+    renderHistory();
+}
+
+function updateHC(slot, queue, val) {
+    requiredHcData[slot][queue] = parseInt(val)||0;
+    const total = queues.reduce((s,q)=>s+requiredHcData[slot][q],0);
+    document.getElementById(`total-${slot}`).innerHTML = total;
+}
+
+// ------------------ MAIN SEGMENTATION ------------------
+function generateSegmentation() {
+    const present = masterAgents.filter(a=>a.status==='PRESENT');
+
+    present.forEach(a=>{
+        a.total = 0;
+        queues.forEach(q=>a.assignments[q]=0);
+    });
+
+    let html = `<table><thead><tr><th>Time</th><th>Total</th>${queues.map(q=>`<th>${q}</th>`).join('')}</tr></thead><tbody>`;
+
+    timeSlots.forEach(slot => {
+        const req = requiredHcData[slot];
+        const totalReq = queues.reduce((s,q)=>s+req[q],0);
+
+        if (totalReq > present.length) {
+            html += `<tr class='warning'><td colspan='${queues.length+2}'>${slot}: Kulang ang agents (Req: ${totalReq}, Avail: ${present.length})</td></tr>`;
+            return;
+        }
+
+        // fairness sorting
+        let sorted = [...present].sort((a,b)=> a.total - b.total || Math.random()-0.5);
+        let idx = 0;
+        let assigns = {};
+
+        queues.forEach(q => {
+            assigns[q] = [];
+            for (let i=0; i<req[q]; i++) {
+                const agent = sorted[idx++];
+                if (!agent) break;
+                assigns[q].push(agent.nickname);
+                agent.assignments[q]++;
+                agent.total++;
+            }
+        });
+
+        html += `<tr>
+            <td>${slot}</td>
+            <td>${totalReq}</td>`;
+
+        queues.forEach(q => {
+            html += `<td>${assigns[q].join('<br>')}</td>`;
+        });
+
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    document.getElementById("segmentationOutput").innerHTML = html;
+    renderHistory();
+}
+
+// ------------------ INIT ------------------
+window.onload = () => {
+    renderAttendance();
+    renderRequiredHC();
+    renderHistory();
+};
+</script>
+
+</body>
+</html>
