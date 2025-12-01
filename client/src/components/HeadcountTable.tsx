@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Clock, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Clock, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,10 +33,13 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 interface HeadcountTableProps {
   headcountData: HeadcountData;
   timeSlots: string[];
+  lockedSlots: Set<string>;
   onHeadcountChange: (slot: string, queue: string, value: number) => void;
   onAddTimeSlot: (slot: string) => void;
   onRemoveTimeSlot: (slot: string) => void;
   onResetTimeSlot: (slot: string) => void;
+  onMoveSlotUp: (slot: string) => void;
+  onMoveSlotDown: (slot: string) => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -46,10 +49,13 @@ const PERIODS = ["AM", "PM"];
 export default function HeadcountTable({
   headcountData,
   timeSlots,
+  lockedSlots,
   onHeadcountChange,
   onAddTimeSlot,
   onRemoveTimeSlot,
   onResetTimeSlot,
+  onMoveSlotUp,
+  onMoveSlotDown,
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [startHour, setStartHour] = useState("10");
@@ -115,6 +121,7 @@ export default function HeadcountTable({
                       onChange={(e) =>
                         onHeadcountChange(slot, queue, parseInt(e.target.value) || 0)
                       }
+                      disabled={lockedSlots.has(slot)}
                       data-testid={`input-hc-${slot}-${queue}`}
                     />
                   </TableCell>
@@ -124,6 +131,26 @@ export default function HeadcountTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => onMoveSlotUp(slot)}
+                      disabled={timeSlots.indexOf(slot) === 0}
+                      data-testid={`button-move-up-slot-${slot}`}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => onMoveSlotDown(slot)}
+                      disabled={timeSlots.indexOf(slot) === timeSlots.length - 1}
+                      data-testid={`button-move-down-slot-${slot}`}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"

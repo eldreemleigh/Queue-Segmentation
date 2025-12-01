@@ -213,8 +213,47 @@ export default function Home() {
       return false;
     }
   });
+
+  const [lockedSlots, setLockedSlots] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_lockedSlots");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Check and reset data daily at 10 PM PHT
+  useEffect(() => {
+    const checkDailyReset = () => {
+      const now = new Date();
+      const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+      const phTime = new Date(utcTime + (8 * 60 * 60 * 1000));
+
+      const lastResetKey = "qsg_lastReset";
+      const lastReset = localStorage.getItem(lastResetKey);
+      const lastResetDate = lastReset ? new Date(lastReset).toDateString() : null;
+      const currentDate = phTime.toDateString();
+
+      if (phTime.getHours() >= 22 && lastResetDate !== currentDate) {
+        localStorage.setItem(lastResetKey, phTime.toISOString());
+        localStorage.removeItem("qsg_agents");
+        localStorage.removeItem("qsg_breakTimes");
+        localStorage.removeItem("qsg_timeSlots");
+        localStorage.removeItem("qsg_headcountData");
+        localStorage.removeItem("qsg_results");
+        localStorage.removeItem("qsg_hasGenerated");
+        localStorage.removeItem("qsg_lockedSlots");
+        window.location.reload();
+      }
+    };
+
+    const interval = setInterval(checkDailyReset, 60000); // Check every minute
+    checkDailyReset(); // Check on mount
+    return () => clearInterval(interval);
+  }, []);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
@@ -240,6 +279,10 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("qsg_hasGenerated", JSON.stringify(hasGenerated));
   }, [hasGenerated]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_lockedSlots", JSON.stringify(Array.from(lockedSlots)));
+  }, [lockedSlots]);
 
   const handleStatusChange = (agentId: string, status: AgentStatus) => {
     setAgents((prev) =>
@@ -381,11 +424,40 @@ export default function Home() {
       ...prev,
       [slot]: QUEUES.reduce((acc, q) => ({ ...acc, [q]: 0 }), {}),
     }));
-    setResults([]);
+    setResults((prev) => prev.filter((r) => r.slot !== slot));
+    setLockedSlots((prev) => {
+      const updated = new Set(prev);
+      updated.delete(slot);
+      return updated;
+    });
     setHasGenerated(false);
     toast({
       title: "Time Slot Reset",
       description: `${slot} headcount values have been reset to 0.`,
+    });
+  };
+
+  const handleMoveSlotUp = (slot: string) => {
+    setTimeSlots((prev) => {
+      const index = prev.indexOf(slot);
+      if (index > 0) {
+        const newSlots = [...prev];
+        [newSlots[index], newSlots[index - 1]] = [newSlots[index - 1], newSlots[index]];
+        return newSlots;
+      }
+      return prev;
+    });
+  };
+
+  const handleMoveSlotDown = (slot: string) => {
+    setTimeSlots((prev) => {
+      const index = prev.indexOf(slot);
+      if (index < prev.length - 1) {
+        const newSlots = [...prev];
+        [newSlots[index], newSlots[index + 1]] = [newSlots[index + 1], newSlots[index]];
+        return newSlots;
+      }
+      return prev;
     });
   };
 
@@ -459,6 +531,7 @@ export default function Home() {
           slot,
           totalRequired: totalReq,
           assignments: assigns,
+          locked: true,
         });
       });
 
@@ -481,6 +554,7 @@ export default function Home() {
       );
 
       setResults(newResults);
+      setLockedSlots(new Set(newResults.map((r) => r.slot)));
       setHasGenerated(true);
       setIsGenerating(false);
 
@@ -534,10 +608,13 @@ export default function Home() {
           <HeadcountTable
             headcountData={headcountData}
             timeSlots={timeSlots}
+            lockedSlots={lockedSlots}
             onHeadcountChange={handleHeadcountChange}
             onAddTimeSlot={handleAddTimeSlot}
             onRemoveTimeSlot={handleRemoveTimeSlot}
             onResetTimeSlot={handleResetTimeSlot}
+            onMoveSlotUp={handleMoveSlotUp}
+            onMoveSlotDown={handleMoveSlotDown}
           />
         </SectionCard>
 

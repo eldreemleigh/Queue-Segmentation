@@ -59,6 +59,7 @@ export interface SegmentationResult {
   totalRequired: number;
   assignments: Record<string, string[]>;
   warning?: string;
+  locked?: boolean;
 }
 
 export interface BreakSlot {

@@ -1,4 +1,4 @@
-import { AlertTriangle, Users } from "lucide-react";
+import { AlertTriangle, Users, Lock } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -70,7 +70,10 @@ export default function SegmentationOutput({
             ) : (
               <TableRow key={result.slot} data-testid={`row-result-${result.slot}`}>
                 <TableCell className="font-medium sticky left-0 bg-card z-10" data-testid={`text-slot-${result.slot}`}>
-                  {result.slot}
+                  <div className="flex items-center gap-2">
+                    {result.locked && <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />}
+                    {result.slot}
+                  </div>
                 </TableCell>
                 <TableCell className="text-center font-semibold" data-testid={`text-total-req-${result.slot}`}>
                   {result.totalRequired}
