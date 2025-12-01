@@ -39,6 +39,7 @@ interface HeadcountTableProps {
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
+const MINUTES = ["00", "15", "30", "45"];
 const PERIODS = ["AM", "PM"];
 
 export default function HeadcountTable({
@@ -50,8 +51,10 @@ export default function HeadcountTable({
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [startHour, setStartHour] = useState("10");
+  const [startMinute, setStartMinute] = useState("00");
   const [startPeriod, setStartPeriod] = useState("AM");
   const [endHour, setEndHour] = useState("11");
+  const [endMinute, setEndMinute] = useState("00");
   const [endPeriod, setEndPeriod] = useState("AM");
 
   const getSlotTotal = (slot: string): number => {
@@ -59,14 +62,14 @@ export default function HeadcountTable({
     return QUEUES.reduce((sum, queue) => sum + (headcountData[slot][queue] || 0), 0);
   };
 
-  const formatTime = (hour: string, period: string): string => {
-    return `${hour}:00 ${period}`;
+  const formatTime = (hour: string, minute: string, period: string): string => {
+    return `${hour}:${minute} ${period}`;
   };
 
   const handleAddTimeSlot = () => {
-    const start = formatTime(startHour, startPeriod);
-    const end = formatTime(endHour, endPeriod);
-    const newSlot = `${startHour}:00 - ${endHour}:00`;
+    const start = formatTime(startHour, startMinute, startPeriod);
+    const end = formatTime(endHour, endMinute, endPeriod);
+    const newSlot = `${start} - ${end}`;
     
     if (!timeSlots.includes(newSlot)) {
       onAddTimeSlot(newSlot);
@@ -158,19 +161,32 @@ export default function HeadcountTable({
               <Label>Start Time</Label>
               <div className="flex gap-2">
                 <Select value={startHour} onValueChange={setStartHour}>
-                  <SelectTrigger className="w-24" data-testid="select-start-hour">
+                  <SelectTrigger className="w-[70px]" data-testid="select-start-hour">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {HOURS.map((h) => (
                       <SelectItem key={h} value={h.toString()}>
-                        {h}:00
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <Select value={startMinute} onValueChange={setStartMinute}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-start-minute">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Select value={startPeriod} onValueChange={setStartPeriod}>
-                  <SelectTrigger className="w-20" data-testid="select-start-period">
+                  <SelectTrigger className="w-[70px]" data-testid="select-start-period">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -187,19 +203,32 @@ export default function HeadcountTable({
               <Label>End Time</Label>
               <div className="flex gap-2">
                 <Select value={endHour} onValueChange={setEndHour}>
-                  <SelectTrigger className="w-24" data-testid="select-end-hour">
+                  <SelectTrigger className="w-[70px]" data-testid="select-end-hour">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {HOURS.map((h) => (
                       <SelectItem key={h} value={h.toString()}>
-                        {h}:00
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <Select value={endMinute} onValueChange={setEndMinute}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-end-minute">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Select value={endPeriod} onValueChange={setEndPeriod}>
-                  <SelectTrigger className="w-20" data-testid="select-end-period">
+                  <SelectTrigger className="w-[70px]" data-testid="select-end-period">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
