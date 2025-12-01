@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import AttendanceTable from "@/components/AttendanceTable";
@@ -158,13 +158,88 @@ function removeExpiredBreaks(
 
 export default function Home() {
   const { toast } = useToast();
-  const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
-  const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>({});
-  const [timeSlots, setTimeSlots] = useState<string[]>([...DEFAULT_TIME_SLOTS]);
-  const [headcountData, setHeadcountData] = useState<HeadcountData>(initHeadcount(DEFAULT_TIME_SLOTS));
-  const [results, setResults] = useState<SegmentationResult[]>([]);
-  const [hasGenerated, setHasGenerated] = useState(false);
+  
+  // Load from localStorage or use defaults
+  const [agents, setAgents] = useState<Agent[]>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_agents");
+      return saved ? JSON.parse(saved) : INITIAL_AGENTS;
+    } catch {
+      return INITIAL_AGENTS;
+    }
+  });
+  
+  const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_breakTimes");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  
+  const [timeSlots, setTimeSlots] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_timeSlots");
+      return saved ? JSON.parse(saved) : [...DEFAULT_TIME_SLOTS];
+    } catch {
+      return [...DEFAULT_TIME_SLOTS];
+    }
+  });
+  
+  const [headcountData, setHeadcountData] = useState<HeadcountData>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_headcountData");
+      return saved ? JSON.parse(saved) : initHeadcount(DEFAULT_TIME_SLOTS);
+    } catch {
+      return initHeadcount(DEFAULT_TIME_SLOTS);
+    }
+  });
+  
+  const [results, setResults] = useState<SegmentationResult[]>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_results");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  
+  const [hasGenerated, setHasGenerated] = useState(() => {
+    try {
+      const saved = localStorage.getItem("qsg_hasGenerated");
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+  
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    localStorage.setItem("qsg_agents", JSON.stringify(agents));
+  }, [agents]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_breakTimes", JSON.stringify(breakTimes));
+  }, [breakTimes]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_timeSlots", JSON.stringify(timeSlots));
+  }, [timeSlots]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_headcountData", JSON.stringify(headcountData));
+  }, [headcountData]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_results", JSON.stringify(results));
+  }, [results]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_hasGenerated", JSON.stringify(hasGenerated));
+  }, [hasGenerated]);
 
   const handleStatusChange = (agentId: string, status: AgentStatus) => {
     setAgents((prev) =>
