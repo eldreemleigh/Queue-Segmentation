@@ -1,4 +1,6 @@
-import { AlertTriangle, Users, Lock } from "lucide-react";
+import { useRef, useState } from "react";
+import { AlertTriangle, Users, Lock, Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -9,6 +11,8 @@ import {
 } from "@/components/ui/table";
 import { SegmentationResult, QUEUES } from "@/lib/types";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import html2canvas from "html2canvas";
 
 interface SegmentationOutputProps {
   results: SegmentationResult[];
@@ -19,6 +23,50 @@ export default function SegmentationOutput({
   results,
   hasGenerated,
 }: SegmentationOutputProps) {
+  const tableRef = useRef<HTMLDivElement>(null);
+  const [isCopying, setIsCopying] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopyAsImage = async () => {
+    if (!tableRef.current) return;
+
+    setIsCopying(true);
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        logging: false,
+        useCORS: true,
+      });
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const item = new ClipboardItem({ "image/png": blob });
+          navigator.clipboard.write([item]).then(() => {
+            toast({
+              title: "Success",
+              description: "Segmentation output copied as image",
+            });
+          }).catch(() => {
+            toast({
+              title: "Error",
+              description: "Failed to copy image",
+              variant: "destructive",
+            });
+          });
+        }
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to capture segmentation output",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
   if (!hasGenerated) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground" data-testid="text-segmentation-placeholder">
@@ -40,8 +88,22 @@ export default function SegmentationOutput({
   }
 
   return (
-    <ScrollArea className="w-full">
-      <Table data-testid="table-segmentation">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button
+          onClick={handleCopyAsImage}
+          disabled={isCopying}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          data-testid="button-copy-segmentation-image"
+        >
+          <Copy className="h-4 w-4" />
+          {isCopying ? "Copying..." : "Copy as Image"}
+        </Button>
+      </div>
+      <ScrollArea className="w-full" ref={tableRef}>
+        <Table data-testid="table-segmentation">
         <TableHeader>
           <TableRow>
             <TableHead className="min-w-[120px] sticky left-0 bg-card z-10">Time</TableHead>
@@ -96,5 +158,6 @@ export default function SegmentationOutput({
       </Table>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
+    </div>
   );
 }
