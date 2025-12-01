@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, Plus, UserPlus, Edit2, ChevronUp, ChevronDown } from "lucide-react";
+import { Trash2, Plus, UserPlus, Edit2, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -69,6 +69,8 @@ export default function AttendanceTable({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [draggedAgent, setDraggedAgent] = useState<string | null>(null);
+  const [dragOverAgent, setDragOverAgent] = useState<string | null>(null);
 
   const handleAddAgent = () => {
     if (newAgent.name.trim() && newAgent.nickname.trim()) {
@@ -120,12 +122,41 @@ export default function AttendanceTable({
     }
   };
 
+  const handleDragStart = (agentId: string) => {
+    setDraggedAgent(agentId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (targetAgentId: string) => {
+    if (!draggedAgent || draggedAgent === targetAgentId) {
+      setDraggedAgent(null);
+      setDragOverAgent(null);
+      return;
+    }
+
+    const draggedIndex = agents.findIndex((a) => a.id === draggedAgent);
+    const targetIndex = agents.findIndex((a) => a.id === targetAgentId);
+
+    if (draggedIndex < targetIndex) {
+      onMoveAgentDown(draggedAgent);
+    } else {
+      onMoveAgentUp(draggedAgent);
+    }
+
+    setDraggedAgent(null);
+    setDragOverAgent(null);
+  };
+
   return (
     <div>
       <ScrollArea className="w-full">
         <Table data-testid="table-attendance">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]"></TableHead>
               <TableHead className="min-w-[200px]">Full Name</TableHead>
               <TableHead className="min-w-[100px]">Nickname</TableHead>
               <TableHead className="min-w-[100px]">Rest Days</TableHead>
@@ -135,7 +166,14 @@ export default function AttendanceTable({
           </TableHeader>
           <TableBody>
             {agents.map((agent) => (
-              <TableRow key={agent.id} data-testid={`row-agent-${agent.id}`}>
+              <TableRow 
+                key={agent.id} 
+                data-testid={`row-agent-${agent.id}`}
+                className={`${dragOverAgent === agent.id ? "bg-accent/50" : ""} ${draggedAgent === agent.id ? "opacity-50" : ""}`}
+              >
+                <TableCell className="w-[40px] text-center cursor-grab active:cursor-grabbing" draggable onDragStart={() => handleDragStart(agent.id)} onDragOver={handleDragOver} onDrop={() => handleDrop(agent.id)} onDragEnter={() => setDragOverAgent(agent.id)} onDragLeave={() => setDragOverAgent(null)} data-testid={`drag-handle-agent-${agent.id}`}>
+                  <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
+                </TableCell>
                 <TableCell className="font-medium" data-testid={`text-agent-name-${agent.id}`}>
                   {agent.name}
                 </TableCell>
@@ -171,26 +209,6 @@ export default function AttendanceTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => onMoveAgentUp(agent.id)}
-                      disabled={agents.indexOf(agent) === 0}
-                      data-testid={`button-move-up-agent-${agent.id}`}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => onMoveAgentDown(agent.id)}
-                      disabled={agents.indexOf(agent) === agents.length - 1}
-                      data-testid={`button-move-down-agent-${agent.id}`}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"

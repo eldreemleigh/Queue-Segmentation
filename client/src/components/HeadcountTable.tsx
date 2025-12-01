@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Clock, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Clock, RotateCcw, GripVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +58,8 @@ export default function HeadcountTable({
   onMoveSlotDown,
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [draggedSlot, setDraggedSlot] = useState<string | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [startHour, setStartHour] = useState("10");
   const [startMinute, setStartMinute] = useState("00");
   const [startPeriod, setStartPeriod] = useState("AM");
@@ -85,12 +87,41 @@ export default function HeadcountTable({
     }
   };
 
+  const handleDragStart = (slot: string) => {
+    setDraggedSlot(slot);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (targetSlot: string) => {
+    if (!draggedSlot || draggedSlot === targetSlot) {
+      setDraggedSlot(null);
+      setDragOverSlot(null);
+      return;
+    }
+
+    const draggedIndex = timeSlots.indexOf(draggedSlot);
+    const targetIndex = timeSlots.indexOf(targetSlot);
+
+    if (draggedIndex < targetIndex) {
+      onMoveSlotDown(draggedSlot);
+    } else {
+      onMoveSlotUp(draggedSlot);
+    }
+
+    setDraggedSlot(null);
+    setDragOverSlot(null);
+  };
+
   return (
     <div>
       <ScrollArea className="w-full">
         <Table data-testid="table-headcount">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]"></TableHead>
               <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Time</TableHead>
               {QUEUES.map((queue) => (
                 <TableHead key={queue} className="min-w-[80px] text-center">
@@ -103,7 +134,14 @@ export default function HeadcountTable({
           </TableHeader>
           <TableBody>
             {timeSlots.map((slot) => (
-              <TableRow key={slot} data-testid={`row-timeslot-${slot}`}>
+              <TableRow 
+                key={slot} 
+                data-testid={`row-timeslot-${slot}`}
+                className={`${dragOverSlot === slot ? "bg-accent/50" : ""} ${draggedSlot === slot ? "opacity-50" : ""}`}
+              >
+                <TableCell className="w-[40px] text-center cursor-grab active:cursor-grabbing" draggable onDragStart={() => handleDragStart(slot)} onDragOver={handleDragOver} onDrop={() => handleDrop(slot)} onDragEnter={() => setDragOverSlot(slot)} onDragLeave={() => setDragOverSlot(null)} data-testid={`drag-handle-slot-${slot}`}>
+                  <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
+                </TableCell>
                 <TableCell className="font-medium sticky left-0 bg-card z-10" data-testid={`text-timeslot-${slot}`}>
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
@@ -135,26 +173,6 @@ export default function HeadcountTable({
                       size="icon"
                       variant="ghost"
                       className="text-muted-foreground"
-                      onClick={() => onMoveSlotUp(slot)}
-                      disabled={timeSlots.indexOf(slot) === 0}
-                      data-testid={`button-move-up-slot-${slot}`}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => onMoveSlotDown(slot)}
-                      disabled={timeSlots.indexOf(slot) === timeSlots.length - 1}
-                      data-testid={`button-move-down-slot-${slot}`}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
                       onClick={() => onResetTimeSlot(slot)}
                       data-testid={`button-reset-slot-${slot}`}
                     >
@@ -175,7 +193,7 @@ export default function HeadcountTable({
             ))}
             {timeSlots.length === 0 && (
               <TableRow>
-                <TableCell colSpan={QUEUES.length + 3} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={QUEUES.length + 4} className="text-center py-8 text-muted-foreground">
                   No time slots configured. Add a time slot to begin.
                 </TableCell>
               </TableRow>
