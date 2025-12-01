@@ -2,6 +2,7 @@ import { useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import AttendanceTable from "@/components/AttendanceTable";
+import BreakTimesTable from "@/components/BreakTimesTable";
 import HeadcountTable from "@/components/HeadcountTable";
 import GenerateButton from "@/components/GenerateButton";
 import SegmentationOutput from "@/components/SegmentationOutput";
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Agent,
   AgentStatus,
+  AgentBreakTime,
   HeadcountData,
   SegmentationResult,
   QUEUES,
@@ -46,6 +48,7 @@ function initHeadcount(slots: string[]): HeadcountData {
 export default function Home() {
   const { toast } = useToast();
   const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
+  const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>({});
   const [timeSlots, setTimeSlots] = useState<string[]>([...DEFAULT_TIME_SLOTS]);
   const [headcountData, setHeadcountData] = useState<HeadcountData>(initHeadcount(DEFAULT_TIME_SLOTS));
   const [results, setResults] = useState<SegmentationResult[]>([]);
@@ -87,9 +90,36 @@ export default function Home() {
   const handleDeleteAgent = (agentId: string) => {
     const agent = agents.find((a) => a.id === agentId);
     setAgents((prev) => prev.filter((a) => a.id !== agentId));
+    setBreakTimes((prev) => {
+      const { [agentId]: _, ...rest } = prev;
+      return rest;
+    });
     toast({
       title: "Agent Removed",
       description: agent ? `${agent.nickname} has been removed from the roster.` : "Agent removed.",
+    });
+  };
+
+  const handleBreakTimeChange = (
+    agentId: string,
+    breakType: "earlyBreak" | "mealBreak" | "lateBreak",
+    start: string,
+    end: string
+  ) => {
+    setBreakTimes((prev) => {
+      const existing = prev[agentId] || {
+        agentId,
+        earlyBreak: null,
+        mealBreak: null,
+        lateBreak: null,
+      };
+      return {
+        ...prev,
+        [agentId]: {
+          ...existing,
+          [breakType]: { start, end },
+        },
+      };
     });
   };
 
@@ -249,7 +279,15 @@ export default function Home() {
           />
         </SectionCard>
 
-        <SectionCard sectionNumber={2} title="Required Headcount">
+        <SectionCard sectionNumber={2} title="Break Times">
+          <BreakTimesTable
+            agents={agents}
+            breakTimes={breakTimes}
+            onBreakTimeChange={handleBreakTimeChange}
+          />
+        </SectionCard>
+
+        <SectionCard sectionNumber={3} title="Required Headcount">
           <HeadcountTable
             headcountData={headcountData}
             timeSlots={timeSlots}
@@ -263,11 +301,11 @@ export default function Home() {
           <GenerateButton onClick={generateSegmentation} isLoading={isGenerating} />
         </div>
 
-        <SectionCard sectionNumber={3} title="Segmentation Output">
+        <SectionCard sectionNumber={4} title="Segmentation Output">
           <SegmentationOutput results={results} hasGenerated={hasGenerated} />
         </SectionCard>
 
-        <SectionCard sectionNumber={4} title="Assignment History">
+        <SectionCard sectionNumber={5} title="Assignment History">
           <HistoryTable agents={agents} />
         </SectionCard>
       </main>

@@ -60,3 +60,10 @@ export interface SegmentationResult {
   assignments: Record<string, string[]>;
   warning?: string;
 }
+
+export interface AgentBreakTime {
+  agentId: string;
+  earlyBreak: { start: string; end: string } | null;
+  mealBreak: { start: string; end: string } | null;
+  lateBreak: { start: string; end: string } | null;
+}
