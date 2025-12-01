@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Clock } from "lucide-react";
+import { Plus, Trash2, Clock, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ interface HeadcountTableProps {
   onHeadcountChange: (slot: string, queue: string, value: number) => void;
   onAddTimeSlot: (slot: string) => void;
   onRemoveTimeSlot: (slot: string) => void;
+  onResetTimeSlot: (slot: string) => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -48,6 +49,7 @@ export default function HeadcountTable({
   onHeadcountChange,
   onAddTimeSlot,
   onRemoveTimeSlot,
+  onResetTimeSlot,
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [startHour, setStartHour] = useState("10");
@@ -121,15 +123,26 @@ export default function HeadcountTable({
                   {getSlotTotal(slot)}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-muted-foreground"
-                    onClick={() => onRemoveTimeSlot(slot)}
-                    data-testid={`button-remove-slot-${slot}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => onResetTimeSlot(slot)}
+                      data-testid={`button-reset-slot-${slot}`}
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => onRemoveTimeSlot(slot)}
+                      data-testid={`button-remove-slot-${slot}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

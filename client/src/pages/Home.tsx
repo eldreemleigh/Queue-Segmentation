@@ -249,6 +249,19 @@ export default function Home() {
     });
   };
 
+  const handleResetTimeSlot = (slot: string) => {
+    setHeadcountData((prev) => ({
+      ...prev,
+      [slot]: QUEUES.reduce((acc, q) => ({ ...acc, [q]: 0 }), {}),
+    }));
+    setResults([]);
+    setHasGenerated(false);
+    toast({
+      title: "Time Slot Reset",
+      description: `${slot} headcount values have been reset to 0.`,
+    });
+  };
+
   const generateSegmentation = () => {
     setIsGenerating(true);
     
@@ -394,6 +407,7 @@ export default function Home() {
             onHeadcountChange={handleHeadcountChange}
             onAddTimeSlot={handleAddTimeSlot}
             onRemoveTimeSlot={handleRemoveTimeSlot}
+            onResetTimeSlot={handleResetTimeSlot}
           />
         </SectionCard>
 
