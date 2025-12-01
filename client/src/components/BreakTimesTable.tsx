@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -26,7 +26,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Coffee, Clock, Plus, Trash2 } from "lucide-react";
+import { Coffee, Clock, Plus, Trash2, Edit2 } from "lucide-react";
 import { Agent, AgentBreakTime, BreakSlot } from "@/lib/types";
 
 interface BreakTimesTableProps {
@@ -114,42 +114,47 @@ function TimeSelect({
   );
 }
 
-function BreakRow({
+function BreakDisplayRow({
   agentId,
   breakSlot,
-  onUpdate,
+  onEdit,
   onDelete,
 }: {
   agentId: string;
   breakSlot: BreakSlot;
-  onUpdate: (updated: BreakSlot) => void;
+  onEdit: (breakSlot: BreakSlot) => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 py-1.5 px-2 bg-muted/30 rounded-md">
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-        {breakSlot.name}
-      </Badge>
-      <TimeSelect
-        value={breakSlot.start}
-        onChange={(newStart) => onUpdate({ ...breakSlot, start: newStart })}
-        testIdPrefix={`select-break-start-${agentId}-${breakSlot.id}`}
-      />
-      <span className="text-muted-foreground text-xs">to</span>
-      <TimeSelect
-        value={breakSlot.end}
-        onChange={(newEnd) => onUpdate({ ...breakSlot, end: newEnd })}
-        testIdPrefix={`select-break-end-${agentId}-${breakSlot.id}`}
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6 shrink-0"
-        onClick={onDelete}
-        data-testid={`button-delete-break-${agentId}-${breakSlot.id}`}
-      >
-        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-      </Button>
+    <div className="flex items-center justify-between gap-2 py-1.5 px-2 bg-muted/30 rounded-md">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+          {breakSlot.name}
+        </Badge>
+        <span className="text-xs text-muted-foreground shrink-0">{breakSlot.start}</span>
+        <span className="text-xs text-muted-foreground shrink-0">-</span>
+        <span className="text-xs text-muted-foreground shrink-0">{breakSlot.end}</span>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => onEdit(breakSlot)}
+          data-testid={`button-edit-break-${agentId}-${breakSlot.id}`}
+        >
+          <Edit2 className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={onDelete}
+          data-testid={`button-delete-break-${agentId}-${breakSlot.id}`}
+        >
+          <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -164,11 +169,26 @@ function AgentBreaksCell({
   onBreakChange: (breaks: BreakSlot[]) => void;
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<typeof PRESET_BREAKS[0] | null>(null);
-  const [isCustom, setIsCustom] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"main" | "preset" | "custom">("main");
+  const [editingBreak, setEditingBreak] = useState<BreakSlot | null>(null);
   const [customStart, setCustomStart] = useState("11:00 AM");
   const [customEnd, setCustomEnd] = useState("11:15 AM");
   const [customName, setCustomName] = useState("Break");
+
+  const handleOpenDialog = () => {
+    setDialogMode("main");
+    setEditingBreak(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditBreak = (breakSlot: BreakSlot) => {
+    setEditingBreak(breakSlot);
+    setCustomName(breakSlot.name);
+    setCustomStart(breakSlot.start);
+    setCustomEnd(breakSlot.end);
+    setDialogMode("custom");
+    setIsDialogOpen(true);
+  };
 
   const handleAddPresetBreak = (preset: typeof PRESET_BREAKS[0]) => {
     const newBreak: BreakSlot = {
@@ -178,24 +198,28 @@ function AgentBreaksCell({
       end: preset.defaultEnd,
     };
     onBreakChange([...breaks, newBreak]);
-    setSelectedPreset(null);
-  };
-
-  const handleAddCustomBreak = () => {
-    const newBreak: BreakSlot = {
-      id: crypto.randomUUID(),
-      name: customName || "Break",
-      start: customStart,
-      end: customEnd,
-    };
-    onBreakChange([...breaks, newBreak]);
     setIsDialogOpen(false);
-    setIsCustom(false);
-    setCustomName("Break");
   };
 
-  const handleUpdateBreak = (updatedBreak: BreakSlot) => {
-    onBreakChange(breaks.map((b) => (b.id === updatedBreak.id ? updatedBreak : b)));
+  const handleSaveCustomBreak = () => {
+    if (editingBreak) {
+      const updated = breaks.map((b) =>
+        b.id === editingBreak.id
+          ? { ...editingBreak, name: customName, start: customStart, end: customEnd }
+          : b
+      );
+      onBreakChange(updated);
+    } else {
+      const newBreak: BreakSlot = {
+        id: crypto.randomUUID(),
+        name: customName || "Break",
+        start: customStart,
+        end: customEnd,
+      };
+      onBreakChange([...breaks, newBreak]);
+    }
+    setIsDialogOpen(false);
+    setEditingBreak(null);
   };
 
   const handleDeleteBreak = (breakId: string) => {
@@ -209,11 +233,11 @@ function AgentBreaksCell({
       ) : (
         <div className="space-y-1.5">
           {breaks.map((breakSlot) => (
-            <BreakRow
+            <BreakDisplayRow
               key={breakSlot.id}
               agentId={agent.id}
               breakSlot={breakSlot}
-              onUpdate={handleUpdateBreak}
+              onEdit={handleEditBreak}
               onDelete={() => handleDeleteBreak(breakSlot.id)}
             />
           ))}
@@ -224,7 +248,7 @@ function AgentBreaksCell({
         variant="outline"
         size="sm"
         className="h-7 text-xs w-full"
-        onClick={() => setIsDialogOpen(true)}
+        onClick={handleOpenDialog}
         data-testid={`button-add-break-${agent.id}`}
       >
         <Plus className="h-3 w-3 mr-1" />
@@ -234,10 +258,12 @@ function AgentBreaksCell({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Break for {agent.nickname}</DialogTitle>
+            <DialogTitle>
+              {editingBreak ? "Edit Break" : "Add Break"} for {agent.nickname}
+            </DialogTitle>
           </DialogHeader>
           
-          {!isCustom ? (
+          {dialogMode === "main" && !editingBreak && (
             <div className="grid gap-2 py-4">
               <p className="text-xs text-muted-foreground mb-2">Select a preset break or create a custom one:</p>
               {PRESET_BREAKS.map((preset) => (
@@ -257,14 +283,16 @@ function AgentBreaksCell({
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs mt-2"
-                onClick={() => setIsCustom(true)}
+                onClick={() => setDialogMode("custom")}
                 data-testid={`button-custom-break-${agent.id}`}
               >
                 <Plus className="h-3 w-3 mr-1" />
                 Custom Break
               </Button>
             </div>
-          ) : (
+          )}
+          
+          {dialogMode === "custom" && (
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label className="text-xs">Break Name</Label>
@@ -279,23 +307,19 @@ function AgentBreaksCell({
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs">Start Time</Label>
-                <div className="flex items-center gap-1">
-                  <TimeSelect
-                    value={customStart}
-                    onChange={setCustomStart}
-                    testIdPrefix={`select-custom-start-${agent.id}`}
-                  />
-                </div>
+                <TimeSelect
+                  value={customStart}
+                  onChange={setCustomStart}
+                  testIdPrefix={`select-custom-start-${agent.id}`}
+                />
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs">End Time</Label>
-                <div className="flex items-center gap-1">
-                  <TimeSelect
-                    value={customEnd}
-                    onChange={setCustomEnd}
-                    testIdPrefix={`select-custom-end-${agent.id}`}
-                  />
-                </div>
+                <TimeSelect
+                  value={customEnd}
+                  onChange={setCustomEnd}
+                  testIdPrefix={`select-custom-end-${agent.id}`}
+                />
               </div>
             </div>
           )}
@@ -306,22 +330,24 @@ function AgentBreaksCell({
                 Cancel
               </Button>
             </DialogClose>
-            {isCustom && (
+            {dialogMode === "custom" && (
               <>
+                {!editingBreak && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDialogMode("main")}
+                    data-testid={`button-back-presets-${agent.id}`}
+                  >
+                    Back
+                  </Button>
+                )}
                 <Button
-                  variant="outline"
                   size="sm"
-                  onClick={() => setIsCustom(false)}
-                  data-testid={`button-back-presets-${agent.id}`}
-                >
-                  Back
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleAddCustomBreak}
+                  onClick={handleSaveCustomBreak}
                   data-testid={`button-confirm-custom-${agent.id}`}
                 >
-                  Add Break
+                  {editingBreak ? "Save" : "Add"} Break
                 </Button>
               </>
             )}
@@ -337,12 +363,14 @@ export default function BreakTimesTable({
   breakTimes,
   onBreakChange,
 }: BreakTimesTableProps) {
-  if (agents.length === 0) {
+  const presentAgents = agents.filter((a) => a.status === "PRESENT");
+
+  if (presentAgents.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-        <p className="text-sm">No agents in roster.</p>
-        <p className="text-xs mt-1">Add agents in Attendance section to configure break times.</p>
+        <p className="text-sm">No agents marked as PRESENT.</p>
+        <p className="text-xs mt-1">Mark agents as present in Attendance section to configure break times.</p>
       </div>
     );
   }
@@ -351,7 +379,7 @@ export default function BreakTimesTable({
     <div>
       <div className="mb-4 p-3 bg-muted/50 rounded-md">
         <p className="text-xs text-muted-foreground">
-          Configure break times for each agent. Choose from preset breaks (Early Break, Lunch Break, Late Break) or create custom breaks with exact minute precision. 
+          Configure break times for present agents. Choose from preset breaks (Early Break, Lunch Break, Late Break) or create custom breaks with exact minute precision. 
           Agents on break will NOT be assigned to any queue during their break period. Expired breaks are automatically removed.
         </p>
       </div>
@@ -370,7 +398,7 @@ export default function BreakTimesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {agents.map((agent) => {
+            {presentAgents.map((agent) => {
               const agentBreakData = breakTimes[agent.id];
               const breaks = agentBreakData?.breaks || [];
               
