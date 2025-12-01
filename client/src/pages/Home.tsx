@@ -114,6 +114,31 @@ function isAgentOnBreak(
   return false;
 }
 
+function removeExpiredBreaks(
+  breakTimes: Record<string, AgentBreakTime>
+): Record<string, AgentBreakTime> {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  const updated: Record<string, AgentBreakTime> = {};
+  
+  Object.entries(breakTimes).forEach(([agentId, breakData]) => {
+    const activeBreaks = breakData.breaks.filter((breakSlot) => {
+      const breakEnd = parseTimeToMinutes(breakSlot.end);
+      return breakEnd > currentMinutes;
+    });
+    
+    if (activeBreaks.length > 0) {
+      updated[agentId] = {
+        ...breakData,
+        breaks: activeBreaks,
+      };
+    }
+  });
+  
+  return updated;
+}
+
 export default function Home() {
   const { toast } = useToast();
   const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
@@ -221,6 +246,9 @@ export default function Home() {
     setIsGenerating(true);
     
     setTimeout(() => {
+      const cleanedBreakTimes = removeExpiredBreaks(breakTimes);
+      setBreakTimes(cleanedBreakTimes);
+      
       const presentAgents = agents.filter((a) => a.status === "PRESENT");
       
       const agentsCopy = presentAgents.map((a) => ({
@@ -240,11 +268,11 @@ export default function Home() {
         }
 
         const availableAgents = agentsCopy.filter(
-          (a) => !isAgentOnBreak(a.id, slot, breakTimes)
+          (a) => !isAgentOnBreak(a.id, slot, cleanedBreakTimes)
         );
 
         const onBreakAgents = agentsCopy.filter(
-          (a) => isAgentOnBreak(a.id, slot, breakTimes)
+          (a) => isAgentOnBreak(a.id, slot, cleanedBreakTimes)
         );
 
         if (totalReq > availableAgents.length) {

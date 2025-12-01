@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +38,12 @@ interface BreakTimesTableProps {
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
 const PERIODS = ["AM", "PM"];
+
+const PRESET_BREAKS = [
+  { name: "Early Break", defaultStart: "11:00 AM", defaultEnd: "11:15 AM" },
+  { name: "Lunch Break", defaultStart: "12:00 PM", defaultEnd: "1:00 PM" },
+  { name: "Late Break", defaultStart: "4:00 PM", defaultEnd: "4:15 PM" },
+];
 
 function TimeSelect({ 
   value, 
@@ -159,24 +164,34 @@ function AgentBreaksCell({
   onBreakChange: (breaks: BreakSlot[]) => void;
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [breakName, setBreakName] = useState("Break");
-  const [startHour, setStartHour] = useState("11");
-  const [startMinute, setStartMinute] = useState("00");
-  const [startPeriod, setStartPeriod] = useState("AM");
-  const [endHour, setEndHour] = useState("11");
-  const [endMinute, setEndMinute] = useState("15");
-  const [endPeriod, setEndPeriod] = useState("AM");
+  const [selectedPreset, setSelectedPreset] = useState<typeof PRESET_BREAKS[0] | null>(null);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customStart, setCustomStart] = useState("11:00 AM");
+  const [customEnd, setCustomEnd] = useState("11:15 AM");
+  const [customName, setCustomName] = useState("Break");
 
-  const handleAddBreak = () => {
+  const handleAddPresetBreak = (preset: typeof PRESET_BREAKS[0]) => {
     const newBreak: BreakSlot = {
       id: crypto.randomUUID(),
-      name: breakName || "Break",
-      start: `${startHour}:${startMinute} ${startPeriod}`,
-      end: `${endHour}:${endMinute} ${endPeriod}`,
+      name: preset.name,
+      start: preset.defaultStart,
+      end: preset.defaultEnd,
+    };
+    onBreakChange([...breaks, newBreak]);
+    setSelectedPreset(null);
+  };
+
+  const handleAddCustomBreak = () => {
+    const newBreak: BreakSlot = {
+      id: crypto.randomUUID(),
+      name: customName || "Break",
+      start: customStart,
+      end: customEnd,
     };
     onBreakChange([...breaks, newBreak]);
     setIsDialogOpen(false);
-    setBreakName("Break");
+    setIsCustom(false);
+    setCustomName("Break");
   };
 
   const handleUpdateBreak = (updatedBreak: BreakSlot) => {
@@ -208,7 +223,7 @@ function AgentBreaksCell({
       <Button
         variant="outline"
         size="sm"
-        className="h-7 text-xs"
+        className="h-7 text-xs w-full"
         onClick={() => setIsDialogOpen(true)}
         data-testid={`button-add-break-${agent.id}`}
       >
@@ -221,108 +236,95 @@ function AgentBreaksCell({
           <DialogHeader>
             <DialogTitle>Add Break for {agent.nickname}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Break Name</Label>
-              <Input
-                value={breakName}
-                onChange={(e) => setBreakName(e.target.value)}
-                placeholder="e.g., Early Break, Meal Break"
-                data-testid={`input-break-name-${agent.id}`}
-              />
+          
+          {!isCustom ? (
+            <div className="grid gap-2 py-4">
+              <p className="text-xs text-muted-foreground mb-2">Select a preset break or create a custom one:</p>
+              {PRESET_BREAKS.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant="outline"
+                  className="h-8 justify-start text-xs"
+                  onClick={() => handleAddPresetBreak(preset)}
+                  data-testid={`button-preset-${preset.name.replace(/\s+/g, "-")}-${agent.id}`}
+                >
+                  <Coffee className="h-3 w-3 mr-2" />
+                  <span className="flex-1 text-left">{preset.name}</span>
+                  <span className="text-muted-foreground text-[10px]">{preset.defaultStart} - {preset.defaultEnd}</span>
+                </Button>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs mt-2"
+                onClick={() => setIsCustom(true)}
+                data-testid={`button-custom-break-${agent.id}`}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Custom Break
+              </Button>
             </div>
-            <div className="grid gap-2">
-              <Label>Start Time</Label>
-              <div className="flex items-center gap-1">
-                <Select value={startHour} onValueChange={setStartHour}>
-                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-start-hour-${agent.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HOURS.map((h) => (
-                      <SelectItem key={h} value={h.toString()}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-muted-foreground">:</span>
-                <Select value={startMinute} onValueChange={setStartMinute}>
-                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-start-minute-${agent.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
-                    {MINUTES.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={startPeriod} onValueChange={setStartPeriod}>
-                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-start-period-${agent.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERIODS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          ) : (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label className="text-xs">Break Name</Label>
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="e.g., Mid-Morning Break"
+                  className="text-xs px-2 py-1 border rounded"
+                  data-testid={`input-custom-name-${agent.id}`}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs">Start Time</Label>
+                <div className="flex items-center gap-1">
+                  <TimeSelect
+                    value={customStart}
+                    onChange={setCustomStart}
+                    testIdPrefix={`select-custom-start-${agent.id}`}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs">End Time</Label>
+                <div className="flex items-center gap-1">
+                  <TimeSelect
+                    value={customEnd}
+                    onChange={setCustomEnd}
+                    testIdPrefix={`select-custom-end-${agent.id}`}
+                  />
+                </div>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label>End Time</Label>
-              <div className="flex items-center gap-1">
-                <Select value={endHour} onValueChange={setEndHour}>
-                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-end-hour-${agent.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HOURS.map((h) => (
-                      <SelectItem key={h} value={h.toString()}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-muted-foreground">:</span>
-                <Select value={endMinute} onValueChange={setEndMinute}>
-                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-end-minute-${agent.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
-                    {MINUTES.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={endPeriod} onValueChange={setEndPeriod}>
-                  <SelectTrigger className="w-[60px]" data-testid={`select-new-break-end-period-${agent.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERIODS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+          )}
+          
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" data-testid={`button-cancel-break-${agent.id}`}>Cancel</Button>
+              <Button variant="outline" size="sm" data-testid={`button-cancel-break-${agent.id}`}>
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={handleAddBreak} data-testid={`button-confirm-break-${agent.id}`}>
-              Add Break
-            </Button>
+            {isCustom && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCustom(false)}
+                  data-testid={`button-back-presets-${agent.id}`}
+                >
+                  Back
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleAddCustomBreak}
+                  data-testid={`button-confirm-custom-${agent.id}`}
+                >
+                  Add Break
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -335,14 +337,12 @@ export default function BreakTimesTable({
   breakTimes,
   onBreakChange,
 }: BreakTimesTableProps) {
-  const presentAgents = agents.filter((a) => a.status === "PRESENT");
-
-  if (presentAgents.length === 0) {
+  if (agents.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-        <p className="text-sm">No agents marked as PRESENT.</p>
-        <p className="text-xs mt-1">Change agent status in Attendance to configure break times.</p>
+        <p className="text-sm">No agents in roster.</p>
+        <p className="text-xs mt-1">Add agents in Attendance section to configure break times.</p>
       </div>
     );
   }
@@ -351,8 +351,8 @@ export default function BreakTimesTable({
     <div>
       <div className="mb-4 p-3 bg-muted/50 rounded-md">
         <p className="text-xs text-muted-foreground">
-          Configure break times for each agent. Agents on break will NOT be assigned to any queue during their break period. 
-          Add custom breaks with exact minute precision (e.g., 11:34 AM).
+          Configure break times for each agent. Choose from preset breaks (Early Break, Lunch Break, Late Break) or create custom breaks with exact minute precision. 
+          Agents on break will NOT be assigned to any queue during their break period. Expired breaks are automatically removed.
         </p>
       </div>
       
@@ -370,7 +370,7 @@ export default function BreakTimesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {presentAgents.map((agent) => {
+            {agents.map((agent) => {
               const agentBreakData = breakTimes[agent.id];
               const breaks = agentBreakData?.breaks || [];
               
