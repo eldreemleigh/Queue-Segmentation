@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Trash2, Plus, UserPlus, Edit2, GripVertical } from "lucide-react";
+import { Trash2, Plus, UserPlus, Edit2, GripVertical, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -49,6 +50,7 @@ interface AttendanceTableProps {
   onEditAgent: (agentId: string, agent: Omit<Agent, "id" | "assignments" | "total" | "status">) => void;
   onMoveAgentUp: (agentId: string) => void;
   onMoveAgentDown: (agentId: string) => void;
+  onResetAllStatuses: () => void;
 }
 
 export default function AttendanceTable({
@@ -59,12 +61,14 @@ export default function AttendanceTable({
   onEditAgent,
   onMoveAgentUp,
   onMoveAgentDown,
+  onResetAllStatuses,
 }: AttendanceTableProps) {
   const [newAgent, setNewAgent] = useState({
     name: "",
     nickname: "",
     restDays: "Sun-Mon",
     status: "PRESENT" as AgentStatus,
+    avatar: "",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
@@ -74,14 +78,32 @@ export default function AttendanceTable({
 
   const handleAddAgent = () => {
     if (newAgent.name.trim() && newAgent.nickname.trim()) {
-      onAddAgent(newAgent);
+      const { avatar, ...agentData } = newAgent;
+      onAddAgent({ ...agentData, avatar: avatar || undefined });
       setNewAgent({
         name: "",
         nickname: "",
         restDays: "Sun-Mon",
         status: "PRESENT",
+        avatar: "",
       });
       setIsDialogOpen(false);
+    }
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>, isNew = true) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (isNew) {
+          setNewAgent({ ...newAgent, avatar: base64 });
+        } else if (editingAgent) {
+          setEditingAgent({ ...editingAgent, avatar: base64 });
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -92,14 +114,20 @@ export default function AttendanceTable({
 
   const handleSaveEdit = () => {
     if (editingAgent && editingAgent.name.trim() && editingAgent.nickname.trim()) {
+      const { avatar, ...rest } = editingAgent;
       onEditAgent(editingAgent.id, {
         name: editingAgent.name,
         nickname: editingAgent.nickname,
         restDays: editingAgent.restDays,
+        avatar: avatar || undefined,
       });
       setIsEditDialogOpen(false);
       setEditingAgent(null);
     }
+  };
+
+  const getTotalHeadcount = () => {
+    return agents.filter((a) => a.status === "PRESENT").length;
   };
 
   const getStatusColor = (status: AgentStatus) => {
@@ -152,11 +180,28 @@ export default function AttendanceTable({
 
   return (
     <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={onResetAllStatuses}
+            data-testid="button-reset-all-statuses"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset All Statuses
+          </Button>
+        </div>
+        <div className="text-sm font-semibold">
+          Present: <span className="text-success" data-testid="text-total-headcount">{getTotalHeadcount()}</span>
+        </div>
+      </div>
       <ScrollArea className="w-full">
         <Table data-testid="table-attendance">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[40px]"></TableHead>
+              <TableHead className="w-[50px]">Avatar</TableHead>
               <TableHead className="min-w-[200px]">Full Name</TableHead>
               <TableHead className="min-w-[100px]">Nickname</TableHead>
               <TableHead className="min-w-[100px]">Rest Days</TableHead>
@@ -173,6 +218,12 @@ export default function AttendanceTable({
               >
                 <TableCell className="w-[40px] text-center cursor-grab active:cursor-grabbing" draggable onDragStart={() => handleDragStart(agent.id)} onDragOver={handleDragOver} onDrop={() => handleDrop(agent.id)} onDragEnter={() => setDragOverAgent(agent.id)} onDragLeave={() => setDragOverAgent(null)} data-testid={`drag-handle-agent-${agent.id}`}>
                   <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
+                </TableCell>
+                <TableCell className="w-[50px] text-center" data-testid={`avatar-agent-${agent.id}`}>
+                  <Avatar className="h-8 w-8 mx-auto">
+                    {agent.avatar && <AvatarImage src={agent.avatar} alt={agent.nickname} />}
+                    <AvatarFallback>{agent.nickname.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
                 </TableCell>
                 <TableCell className="font-medium" data-testid={`text-agent-name-${agent.id}`}>
                   {agent.name}
@@ -254,7 +305,7 @@ export default function AttendanceTable({
             ))}
             {agents.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No agents added yet. Click the button below to add an agent.
                 </TableCell>
               </TableRow>
@@ -332,6 +383,19 @@ export default function AttendanceTable({
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="avatar">Avatar (Optional)</Label>
+              <Input
+                id="avatar"
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleAvatarUpload(e, true)}
+                data-testid="input-agent-avatar"
+              />
+              {newAgent.avatar && (
+                <div className="text-sm text-success">Avatar selected</div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -389,6 +453,25 @@ export default function AttendanceTable({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-avatar">Avatar (Optional)</Label>
+                <Input
+                  id="edit-avatar"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleAvatarUpload(e, false)}
+                  data-testid="input-edit-agent-avatar"
+                />
+                {editingAgent.avatar && (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={editingAgent.avatar} alt={editingAgent.nickname} />
+                      <AvatarFallback>{editingAgent.nickname.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-success">Avatar selected</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -8,6 +8,7 @@ export interface Agent {
   status: AgentStatus;
   assignments: Record<string, number>;
   total: number;
+  avatar?: string;
 }
 
 export type Queue = "PM PGC" | "SV PGC" | "LV PGC" | "PM NPGC" | "SV NPGC" | "LV NPGC";
