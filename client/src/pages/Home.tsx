@@ -491,6 +491,32 @@ export default function Home() {
     });
   };
 
+  const handleEditTimeSlot = (oldSlot: string, newSlot: string) => {
+    if (oldSlot === newSlot || timeSlots.includes(newSlot)) return;
+    
+    setTimeSlots((prev) => prev.map((s) => (s === oldSlot ? newSlot : s)));
+    setHeadcountData((prev) => {
+      const { [oldSlot]: oldData, ...rest } = prev;
+      return {
+        ...rest,
+        [newSlot]: oldData,
+      };
+    });
+    setResults((prev) => prev.map((r) => (r.slot === oldSlot ? { ...r, slot: newSlot } : r)));
+    setLockedSlots((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(oldSlot)) {
+        updated.delete(oldSlot);
+        updated.add(newSlot);
+      }
+      return updated;
+    });
+    toast({
+      title: "Time Slot Updated",
+      description: `${oldSlot} has been changed to ${newSlot}.`,
+    });
+  };
+
   const generateSegmentation = () => {
     setIsGenerating(true);
     
@@ -662,6 +688,7 @@ export default function Home() {
             onResetTimeSlot={handleResetTimeSlot}
             onMoveSlotUp={handleMoveSlotUp}
             onMoveSlotDown={handleMoveSlotDown}
+            onEditTimeSlot={handleEditTimeSlot}
           />
         </SectionCard>
 

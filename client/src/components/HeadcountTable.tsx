@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Clock, RotateCcw, GripVertical } from "lucide-react";
+import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +40,7 @@ interface HeadcountTableProps {
   onResetTimeSlot: (slot: string) => void;
   onMoveSlotUp: (slot: string) => void;
   onMoveSlotDown: (slot: string) => void;
+  onEditTimeSlot: (oldSlot: string, newSlot: string) => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -56,8 +57,11 @@ export default function HeadcountTable({
   onResetTimeSlot,
   onMoveSlotUp,
   onMoveSlotDown,
+  onEditTimeSlot,
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [draggedSlot, setDraggedSlot] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [startHour, setStartHour] = useState("10");
@@ -66,6 +70,12 @@ export default function HeadcountTable({
   const [endHour, setEndHour] = useState("11");
   const [endMinute, setEndMinute] = useState("00");
   const [endPeriod, setEndPeriod] = useState("AM");
+  const [editStartHour, setEditStartHour] = useState("10");
+  const [editStartMinute, setEditStartMinute] = useState("00");
+  const [editStartPeriod, setEditStartPeriod] = useState("AM");
+  const [editEndHour, setEditEndHour] = useState("11");
+  const [editEndMinute, setEditEndMinute] = useState("00");
+  const [editEndPeriod, setEditEndPeriod] = useState("AM");
 
   const getSlotTotal = (slot: string): number => {
     if (!headcountData[slot]) return 0;
@@ -84,6 +94,38 @@ export default function HeadcountTable({
     if (!timeSlots.includes(newSlot)) {
       onAddTimeSlot(newSlot);
       setIsDialogOpen(false);
+    }
+  };
+
+  const handleEditClick = (slot: string) => {
+    const [start, end] = slot.split(" - ");
+    const [startTime, startPeriod] = start.trim().split(" ");
+    const [startH, startM] = startTime.split(":");
+    const [endTime, endPeriod] = end.trim().split(" ");
+    const [endH, endM] = endTime.split(":");
+    
+    setEditingSlot(slot);
+    setEditStartHour(startH);
+    setEditStartMinute(startM);
+    setEditStartPeriod(startPeriod);
+    setEditEndHour(endH);
+    setEditEndMinute(endM);
+    setEditEndPeriod(endPeriod);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    const start = formatTime(editStartHour, editStartMinute, editStartPeriod);
+    const end = formatTime(editEndHour, editEndMinute, editEndPeriod);
+    const newSlot = `${start} - ${end}`;
+    
+    if (editingSlot && newSlot !== editingSlot) {
+      onEditTimeSlot(editingSlot, newSlot);
+      setIsEditDialogOpen(false);
+      setEditingSlot(null);
+    } else {
+      setIsEditDialogOpen(false);
+      setEditingSlot(null);
     }
   };
 
@@ -173,6 +215,15 @@ export default function HeadcountTable({
                       size="icon"
                       variant="ghost"
                       className="text-muted-foreground"
+                      onClick={() => handleEditClick(slot)}
+                      data-testid={`button-edit-slot-${slot}`}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground"
                       onClick={() => onResetTimeSlot(slot)}
                       data-testid={`button-reset-slot-${slot}`}
                     >
@@ -202,6 +253,109 @@ export default function HeadcountTable({
         </Table>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Time Slot</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Start Time</Label>
+              <div className="flex gap-2">
+                <Select value={editStartHour} onValueChange={setEditStartHour}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-edit-start-hour">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <Select value={editStartMinute} onValueChange={setEditStartMinute}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-edit-start-minute">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={editStartPeriod} onValueChange={setEditStartPeriod}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-edit-start-period">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>End Time</Label>
+              <div className="flex gap-2">
+                <Select value={editEndHour} onValueChange={setEditEndHour}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-edit-end-hour">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <Select value={editEndMinute} onValueChange={setEditEndMinute}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-edit-end-minute">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={editEndPeriod} onValueChange={setEditEndPeriod}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-edit-end-period">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-cancel-edit-slot">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveEdit} data-testid="button-submit-edit-slot">
+              <Edit2 className="h-4 w-4 mr-2" />
+              Update Time Slot
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
