@@ -21,16 +21,28 @@ import {
 
 // todo: remove mock functionality - initial agents
 const INITIAL_AGENTS: Agent[] = [
-  { id: "1", name: "CAL, MARJORIE", nickname: "Marjorie", restDays: "Mon-Tue", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "2", name: "PANGANIBAN, HANNAH", nickname: "Hannah", restDays: "Tue-Wed", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "3", name: "CORNEJO, MYKA JANE", nickname: "Myka Jane", restDays: "Tue-Wed", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "4", name: "CUSTODIO, DENCH CARL", nickname: "Carl", restDays: "Tue-Wed", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "5", name: "GOMBA, ERICA", nickname: "Erica", restDays: "Wed-Thu", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "6", name: "MACASAET, JAN HAZEL", nickname: "Jan Hazel", restDays: "Wed-Thu", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "7", name: "LAO, JHON EDWARD", nickname: "Jhon Edward", restDays: "Wed-Thu", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "8", name: "ALDAVE, CHRISTIAN JOSEPH", nickname: "Christian Joseph", restDays: "Fri-Sat", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "9", name: "MENDOZA, JENINE MARY JOY", nickname: "Jenine Mary Joy", restDays: "Sat-Sun", status: "PRESENT", assignments: {}, total: 0 },
-  { id: "10", name: "MAUPOY, EUGENE", nickname: "Eugene", restDays: "Sat-Sun", status: "PRESENT", assignments: {}, total: 0 },
+  { id: "1", name: "MANILA, HAEROLD DHIN", nickname: "Haerold", restDays: "Sun-Mon", status: "OFF", assignments: {}, total: 0 },
+  { id: "2", name: "PANGANIBAN, MATHEW", nickname: "Mathew", restDays: "Sun-Mon", status: "OFF", assignments: {}, total: 0 },
+  { id: "3", name: "PALMA, JENNELYN", nickname: "Jennelyn", restDays: "Sun-Mon", status: "OFF", assignments: {}, total: 0 },
+  { id: "4", name: "BALDO, CALEB JAMES", nickname: "Caleb", restDays: "Sun-Mon", status: "OFF", assignments: {}, total: 0 },
+  { id: "5", name: "CASTILLA, GIN LAURENCE", nickname: "Gin", restDays: "Sun-Mon", status: "OFF", assignments: {}, total: 0 },
+  { id: "6", name: "PRESTOZA, LYKA MARIE", nickname: "Lyka", restDays: "Mon-Tue", status: "OFF", assignments: {}, total: 0 },
+  { id: "7", name: "LANOZA, JOHN RUSSEL", nickname: "Russel", restDays: "Mon-Tue", status: "OFF", assignments: {}, total: 0 },
+  { id: "8", name: "TUBALLAS, JAMES VINCE", nickname: "James", restDays: "Mon-Tue", status: "OFF", assignments: {}, total: 0 },
+  { id: "9", name: "KATIGBAK, LOVELY", nickname: "Lovely", restDays: "Mon-Tue", status: "OFF", assignments: {}, total: 0 },
+  { id: "10", name: "RUBION, MOISES AARON", nickname: "Aaron", restDays: "Tue-Wed", status: "OFF", assignments: {}, total: 0 },
+  { id: "11", name: "CONCEPCION, THELMA", nickname: "Thelma", restDays: "Tue-Wed", status: "OFF", assignments: {}, total: 0 },
+  { id: "12", name: "ARAJA, EHRICA", nickname: "Ehrica", restDays: "Tue-Wed", status: "OFF", assignments: {}, total: 0 },
+  { id: "13", name: "CAL, MARJORIE", nickname: "Marjorie", restDays: "Mon-Tue", status: "OFF", assignments: {}, total: 0 },
+  { id: "14", name: "PANGANIBAN, HANNAH", nickname: "Hannah", restDays: "Tue-Wed", status: "OFF", assignments: {}, total: 0 },
+  { id: "15", name: "CORNEJO, MYKA JANE", nickname: "Myka Jane", restDays: "Tue-Wed", status: "OFF", assignments: {}, total: 0 },
+  { id: "16", name: "CUSTODIO, DENCH CARL", nickname: "Carl", restDays: "Tue-Wed", status: "OFF", assignments: {}, total: 0 },
+  { id: "17", name: "GOMBA, ERICA", nickname: "Erica", restDays: "Wed-Thu", status: "OFF", assignments: {}, total: 0 },
+  { id: "18", name: "MACASAET, JAN HAZEL", nickname: "Jan Hazel", restDays: "Wed-Thu", status: "OFF", assignments: {}, total: 0 },
+  { id: "19", name: "LAO, JHON EDWARD", nickname: "Jhon Edward", restDays: "Wed-Thu", status: "OFF", assignments: {}, total: 0 },
+  { id: "20", name: "ALDAVE, CHRISTIAN JOSEPH", nickname: "Christian Joseph", restDays: "Fri-Sat", status: "OFF", assignments: {}, total: 0 },
+  { id: "21", name: "MENDOZA, JENINE MARY JOY", nickname: "Jenine Mary Joy", restDays: "Sat-Sun", status: "OFF", assignments: {}, total: 0 },
+  { id: "22", name: "MAUPOY, EUGENE", nickname: "Eugene", restDays: "Sat-Sun", status: "OFF", assignments: {}, total: 0 },
 ];
 
 function initHeadcount(slots: string[]): HeadcountData {
