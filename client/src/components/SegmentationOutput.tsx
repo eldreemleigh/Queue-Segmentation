@@ -1,14 +1,8 @@
 import { useRef, useState, useCallback } from "react";
-import { AlertTriangle, Users, Lock, Copy, Image, Edit2, Check, X, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Users, Lock, Copy, Image, Edit2, Check, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { SegmentationResult, QUEUES, Agent } from "@/lib/types";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from "html2canvas";
 
@@ -43,8 +36,7 @@ export default function SegmentationOutput({
   agents = [],
   onUpdateAssignments,
 }: SegmentationOutputProps) {
-  const tableRef = useRef<HTMLDivElement>(null);
-  const rowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
+  const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const [isCopying, setIsCopying] = useState(false);
   const [copyingSlot, setCopyingSlot] = useState<string | null>(null);
   const { toast } = useToast();
@@ -52,17 +44,90 @@ export default function SegmentationOutput({
   const [editingCell, setEditingCell] = useState<{ slot: string; queue: string } | null>(null);
   const [editingAgents, setEditingAgents] = useState<string[]>([]);
 
-  const handleCopyAsImage = async () => {
-    if (!tableRef.current) return;
+  const handleCopyAllAsImage = async () => {
+    const container = document.createElement("div");
+    container.style.position = "absolute";
+    container.style.left = "-9999px";
+    container.style.backgroundColor = "#ffffff";
+    container.style.padding = "24px";
+    container.style.fontFamily = "system-ui, -apple-system, sans-serif";
+    document.body.appendChild(container);
+
+    const headerDiv = document.createElement("div");
+    headerDiv.style.fontWeight = "bold";
+    headerDiv.style.fontSize = "20px";
+    headerDiv.style.marginBottom = "20px";
+    headerDiv.style.color = "#0d9488";
+    headerDiv.textContent = "Queue Segmentation Results";
+    container.appendChild(headerDiv);
+
+    results.forEach((result) => {
+      if (result.warning) return;
+
+      const slotDiv = document.createElement("div");
+      slotDiv.style.marginBottom = "20px";
+      slotDiv.style.border = "1px solid #e5e7eb";
+      slotDiv.style.borderRadius = "8px";
+      slotDiv.style.overflow = "hidden";
+
+      const slotHeader = document.createElement("div");
+      slotHeader.style.padding = "12px 16px";
+      slotHeader.style.backgroundColor = "#f0fdfa";
+      slotHeader.style.borderBottom = "1px solid #e5e7eb";
+      slotHeader.style.fontWeight = "600";
+      slotHeader.style.color = "#0d9488";
+      slotHeader.style.display = "flex";
+      slotHeader.style.justifyContent = "space-between";
+      slotHeader.style.alignItems = "center";
+      slotHeader.innerHTML = `<span>${result.slot}</span><span style="font-size: 12px; color: #6b7280;">Total: ${result.totalRequired} agents</span>`;
+      slotDiv.appendChild(slotHeader);
+
+      const queuesContainer = document.createElement("div");
+      queuesContainer.style.padding = "16px";
+      queuesContainer.style.display = "grid";
+      queuesContainer.style.gridTemplateColumns = "repeat(3, 1fr)";
+      queuesContainer.style.gap = "12px";
+
+      QUEUES.forEach((queue) => {
+        const queueAgents = result.assignments[queue] || [];
+        if (queueAgents.length > 0) {
+          const queueDiv = document.createElement("div");
+          queueDiv.style.padding = "10px";
+          queueDiv.style.backgroundColor = "#f9fafb";
+          queueDiv.style.borderRadius = "6px";
+          
+          const queueLabel = document.createElement("div");
+          queueLabel.style.fontSize = "11px";
+          queueLabel.style.fontWeight = "600";
+          queueLabel.style.color = "#6b7280";
+          queueLabel.style.marginBottom = "6px";
+          queueLabel.style.textTransform = "uppercase";
+          queueLabel.textContent = queue;
+          queueDiv.appendChild(queueLabel);
+
+          const agentsDiv = document.createElement("div");
+          agentsDiv.style.fontSize = "13px";
+          agentsDiv.style.color = "#1f2937";
+          agentsDiv.innerHTML = queueAgents.join("<br>");
+          queueDiv.appendChild(agentsDiv);
+
+          queuesContainer.appendChild(queueDiv);
+        }
+      });
+
+      slotDiv.appendChild(queuesContainer);
+      container.appendChild(slotDiv);
+    });
 
     setIsCopying(true);
     try {
-      const canvas = await html2canvas(tableRef.current, {
+      const canvas = await html2canvas(container, {
         backgroundColor: "#ffffff",
         scale: 2,
         logging: false,
-        useCORS: true,
       });
+
+      document.body.removeChild(container);
 
       canvas.toBlob((blob) => {
         if (blob) {
@@ -70,7 +135,7 @@ export default function SegmentationOutput({
           navigator.clipboard.write([item]).then(() => {
             toast({
               title: "Success",
-              description: "Segmentation output copied as image",
+              description: "All segmentation results copied as image",
             });
           }).catch(() => {
             toast({
@@ -82,6 +147,7 @@ export default function SegmentationOutput({
         }
       });
     } catch (error) {
+      document.body.removeChild(container);
       toast({
         title: "Error",
         description: "Failed to capture segmentation output",
@@ -92,82 +158,81 @@ export default function SegmentationOutput({
     }
   };
 
-  const handleCopyRowAsImage = useCallback(async (slot: string, result: SegmentationResult) => {
+  const handleCopySlotAsImage = useCallback(async (slot: string, result: SegmentationResult) => {
     setCopyingSlot(slot);
     try {
       const container = document.createElement("div");
       container.style.position = "absolute";
       container.style.left = "-9999px";
       container.style.backgroundColor = "#ffffff";
-      container.style.padding = "16px";
+      container.style.padding = "20px";
       container.style.fontFamily = "system-ui, -apple-system, sans-serif";
+      container.style.minWidth = "400px";
       document.body.appendChild(container);
 
       const headerDiv = document.createElement("div");
-      headerDiv.style.fontWeight = "bold";
-      headerDiv.style.fontSize = "16px";
-      headerDiv.style.marginBottom = "12px";
-      headerDiv.style.color = "#1a1a2e";
-      headerDiv.textContent = `${slot} - Queue Assignments`;
+      headerDiv.style.display = "flex";
+      headerDiv.style.justifyContent = "space-between";
+      headerDiv.style.alignItems = "center";
+      headerDiv.style.marginBottom = "16px";
+      headerDiv.style.paddingBottom = "12px";
+      headerDiv.style.borderBottom = "2px solid #0d9488";
+      
+      const timeSpan = document.createElement("span");
+      timeSpan.style.fontWeight = "bold";
+      timeSpan.style.fontSize = "18px";
+      timeSpan.style.color = "#0d9488";
+      timeSpan.textContent = slot;
+      headerDiv.appendChild(timeSpan);
+
+      const totalSpan = document.createElement("span");
+      totalSpan.style.fontSize = "13px";
+      totalSpan.style.color = "#6b7280";
+      totalSpan.style.fontWeight = "500";
+      totalSpan.textContent = `Total: ${result.totalRequired} agents`;
+      headerDiv.appendChild(totalSpan);
+      
       container.appendChild(headerDiv);
 
-      const table = document.createElement("table");
-      table.style.borderCollapse = "collapse";
-      table.style.width = "100%";
-      table.style.fontSize = "14px";
+      const queuesGrid = document.createElement("div");
+      queuesGrid.style.display = "grid";
+      queuesGrid.style.gridTemplateColumns = "repeat(2, 1fr)";
+      queuesGrid.style.gap = "12px";
 
-      const thead = document.createElement("thead");
-      const headerRow = document.createElement("tr");
-      headerRow.style.backgroundColor = "#f0f4f8";
-      
-      const headers = ["Queue", "Agents Assigned"];
-      headers.forEach((h) => {
-        const th = document.createElement("th");
-        th.style.padding = "10px 16px";
-        th.style.border = "1px solid #e2e8f0";
-        th.style.textAlign = "left";
-        th.style.fontWeight = "600";
-        th.style.color = "#374151";
-        th.textContent = h;
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement("tbody");
-      QUEUES.forEach((queue, idx) => {
-        const agents = result.assignments[queue] || [];
-        if (agents.length > 0) {
-          const tr = document.createElement("tr");
-          tr.style.backgroundColor = idx % 2 === 0 ? "#ffffff" : "#f9fafb";
+      QUEUES.forEach((queue) => {
+        const queueAgents = result.assignments[queue] || [];
+        if (queueAgents.length > 0) {
+          const queueCard = document.createElement("div");
+          queueCard.style.padding = "12px";
+          queueCard.style.backgroundColor = "#f8fafc";
+          queueCard.style.borderRadius = "8px";
+          queueCard.style.border = "1px solid #e2e8f0";
           
-          const tdQueue = document.createElement("td");
-          tdQueue.style.padding = "10px 16px";
-          tdQueue.style.border = "1px solid #e2e8f0";
-          tdQueue.style.fontWeight = "500";
-          tdQueue.style.color = "#1f2937";
-          tdQueue.textContent = queue;
-          tr.appendChild(tdQueue);
+          const queueLabel = document.createElement("div");
+          queueLabel.style.fontSize = "11px";
+          queueLabel.style.fontWeight = "700";
+          queueLabel.style.color = "#64748b";
+          queueLabel.style.marginBottom = "8px";
+          queueLabel.style.textTransform = "uppercase";
+          queueLabel.style.letterSpacing = "0.5px";
+          queueLabel.textContent = queue;
+          queueCard.appendChild(queueLabel);
 
-          const tdAgents = document.createElement("td");
-          tdAgents.style.padding = "10px 16px";
-          tdAgents.style.border = "1px solid #e2e8f0";
-          tdAgents.style.color = "#374151";
-          tdAgents.textContent = agents.join(", ");
-          tr.appendChild(tdAgents);
+          queueAgents.forEach((agent) => {
+            const agentDiv = document.createElement("div");
+            agentDiv.style.fontSize = "13px";
+            agentDiv.style.color = "#1e293b";
+            agentDiv.style.padding = "4px 0";
+            agentDiv.style.fontWeight = "500";
+            agentDiv.textContent = agent;
+            queueCard.appendChild(agentDiv);
+          });
 
-          tbody.appendChild(tr);
+          queuesGrid.appendChild(queueCard);
         }
       });
-      table.appendChild(tbody);
-      container.appendChild(table);
 
-      const footerDiv = document.createElement("div");
-      footerDiv.style.marginTop = "12px";
-      footerDiv.style.fontSize = "12px";
-      footerDiv.style.color = "#6b7280";
-      footerDiv.textContent = `Total Required: ${result.totalRequired} agents`;
-      container.appendChild(footerDiv);
+      container.appendChild(queuesGrid);
 
       const canvas = await html2canvas(container, {
         backgroundColor: "#ffffff",
@@ -253,20 +318,20 @@ export default function SegmentationOutput({
 
   if (!hasGenerated) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground" data-testid="text-segmentation-placeholder">
-        <Users className="h-12 w-12 mb-4 opacity-50" />
-        <p className="text-lg font-medium">No segmentation generated yet</p>
-        <p className="text-sm">Click the Generate button above to create assignments</p>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-muted/20 rounded-lg border border-dashed" data-testid="text-segmentation-placeholder">
+        <Users className="h-14 w-14 mb-4 opacity-40" />
+        <p className="text-lg font-semibold">No segmentation generated yet</p>
+        <p className="text-sm mt-1">Click the Generate button above to create assignments</p>
       </div>
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground" data-testid="text-no-present-agents">
-        <AlertTriangle className="h-12 w-12 mb-4 text-warning" />
-        <p className="text-lg font-medium">No agents present</p>
-        <p className="text-sm">Set agent status to PRESENT to begin</p>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-warning/5 rounded-lg border border-warning/20" data-testid="text-no-present-agents">
+        <AlertTriangle className="h-14 w-14 mb-4 text-warning" />
+        <p className="text-lg font-semibold">No agents present</p>
+        <p className="text-sm mt-1">Set agent status to PRESENT to begin</p>
       </div>
     );
   }
@@ -275,7 +340,7 @@ export default function SegmentationOutput({
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button
-          onClick={handleCopyAsImage}
+          onClick={handleCopyAllAsImage}
           disabled={isCopying}
           variant="outline"
           size="sm"
@@ -283,97 +348,97 @@ export default function SegmentationOutput({
           data-testid="button-copy-segmentation-image"
         >
           <Copy className="h-4 w-4" />
-          {isCopying ? "Copying..." : "Copy as Image"}
+          {isCopying ? "Copying..." : "Copy All as Image"}
         </Button>
       </div>
-      <ScrollArea className="w-full rounded-lg border-2 border-border/70" ref={tableRef}>
-        <Table className="border-collapse" data-testid="table-segmentation">
-        <TableHeader>
-          <TableRow className="bg-primary/8 hover:bg-primary/8 border-b-4 border-border/85">
-            <TableHead className="min-w-[120px] sticky left-0 bg-primary/8 z-10 border-r-2 border-border/70 font-semibold text-foreground">Time</TableHead>
-            <TableHead className="min-w-[60px] text-center border-r-2 border-border/70 font-semibold text-foreground">Total</TableHead>
-            {QUEUES.map((queue, idx) => (
-              <TableHead 
-                key={queue} 
-                className={`min-w-[100px] text-center font-semibold text-foreground ${
-                  idx === QUEUES.length - 1 ? "" : "border-r-2 border-border/70"
-                }`}
-              >
-                {queue}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {results.map((result) =>
-            result.warning ? (
-              <TableRow key={result.slot} className="bg-destructive/8 hover:bg-destructive/12 border-b-2 border-border/70" data-testid={`row-warning-${result.slot}`}>
-                <TableCell
-                  colSpan={2 + QUEUES.length}
-                  className="py-4"
-                >
-                  <div className="flex items-center gap-2 text-destructive font-medium">
-                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                    <span data-testid={`text-warning-${result.slot}`}>{result.warning}</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              <TableRow key={result.slot} className="border-b-2 border-border/60 hover:bg-muted/50" data-testid={`row-result-${result.slot}`}>
-                <TableCell className="font-medium sticky left-0 bg-card z-10 border-r-2 border-border/70" data-testid={`text-slot-${result.slot}`}>
-                  <div className="flex items-center gap-2">
-                    {result.locked && <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />}
-                    {result.slot}
-                    <Button
-                      onClick={() => handleCopyRowAsImage(result.slot, result)}
-                      disabled={copyingSlot === result.slot}
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      title="Copy as Image"
-                      data-testid={`button-copy-row-${result.slot}`}
-                    >
-                      <Image className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center font-semibold border-r-2 border-border/70" data-testid={`text-total-req-${result.slot}`}>
-                  {result.totalRequired}
-                </TableCell>
-                {QUEUES.map((queue, idx) => (
-                  <TableCell 
-                    key={queue} 
-                    className={`text-center py-3 ${idx === QUEUES.length - 1 ? "" : "border-r-2 border-border/70"}`}
-                    data-testid={`text-assignments-${result.slot}-${queue}`}
+
+      <div className="grid gap-4">
+        {results.map((result) =>
+          result.warning ? (
+            <Card key={result.slot} className="border-destructive/30 bg-destructive/5" data-testid={`row-warning-${result.slot}`}>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3 text-destructive">
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                  <span className="font-medium" data-testid={`text-warning-${result.slot}`}>{result.warning}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card 
+              key={result.slot} 
+              ref={(el) => (cardRefs.current[result.slot] = el)}
+              className="overflow-hidden"
+              data-testid={`row-result-${result.slot}`}
+            >
+              <CardHeader className="pb-3 bg-gradient-to-r from-primary/8 to-transparent border-b">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    {result.locked && <Lock className="h-4 w-4 text-warning" />}
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span data-testid={`text-slot-${result.slot}`}>{result.slot}</span>
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {result.totalRequired} agents
+                    </Badge>
+                  </CardTitle>
+                  <Button
+                    onClick={() => handleCopySlotAsImage(result.slot, result)}
+                    disabled={copyingSlot === result.slot}
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-muted-foreground"
+                    title="Copy this time slot as image"
+                    data-testid={`button-copy-row-${result.slot}`}
                   >
-                    <div className="flex flex-col divide-y divide-border/50 group relative">
-                      {result.assignments[queue]?.map((nickname, i) => (
-                        <span key={i} className="text-sm font-medium py-1 first:pt-0 last:pb-0">
-                          {nickname}
-                        </span>
-                      ))}
-                      {onUpdateAssignments && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleOpenEditDialog(result.slot, queue, result.assignments[queue] || [])}
-                          data-testid={`button-edit-${result.slot}-${queue}`}
-                          aria-label={`Edit ${queue} assignments for ${result.slot}`}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                ))}
-              </TableRow>
-            )
-          )}
-        </TableBody>
-      </Table>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+                    <Image className="h-4 w-4" />
+                    {copyingSlot === result.slot ? "Copying..." : "Copy"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {QUEUES.map((queue) => {
+                    const queueAgents = result.assignments[queue] || [];
+                    return (
+                      <div 
+                        key={queue} 
+                        className="group relative bg-muted/30 rounded-lg p-3 min-h-[80px]"
+                        data-testid={`text-assignments-${result.slot}-${queue}`}
+                      >
+                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          {queue}
+                        </div>
+                        <div className="space-y-1">
+                          {queueAgents.length === 0 ? (
+                            <span className="text-xs text-muted-foreground/60">-</span>
+                          ) : (
+                            queueAgents.map((nickname, i) => (
+                              <div key={i} className="text-sm font-medium">
+                                {nickname}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                        {onUpdateAssignments && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleOpenEditDialog(result.slot, queue, queueAgents)}
+                            data-testid={`button-edit-${result.slot}-${queue}`}
+                            aria-label={`Edit ${queue} assignments for ${result.slot}`}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        )}
+      </div>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -401,7 +466,7 @@ export default function SegmentationOutput({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-4 w-4 hover:bg-destructive/20"
+                        className="h-4 w-4"
                         onClick={() => handleRemoveAgentFromEdit(index)}
                         data-testid={`button-remove-agent-${agent}`}
                         aria-label={`Remove ${agent} from assignment`}

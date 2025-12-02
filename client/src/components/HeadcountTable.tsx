@@ -2,14 +2,7 @@ import { useState } from "react";
 import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +21,6 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { HeadcountData, QUEUES, QueueTimeSlotData, QueueTimeSlot } from "@/lib/types";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface HeadcountTableProps {
   headcountData: HeadcountData;
@@ -221,57 +213,87 @@ export default function HeadcountTable({
   };
 
   return (
-    <div>
-      <ScrollArea className="w-full">
-        <Table data-testid="table-headcount">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40px]"></TableHead>
-              <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Time</TableHead>
-              {QUEUES.map((queue) => (
-                <TableHead key={queue} className="min-w-[80px] text-center">
-                  {queue}
-                </TableHead>
-              ))}
-              <TableHead className="min-w-[70px] text-center font-semibold">Total</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {timeSlots.map((slot) => (
-              <TableRow 
-                key={slot} 
-                data-testid={`row-timeslot-${slot}`}
-                className={`${dragOverSlot === slot ? "bg-accent/50" : ""} ${draggedSlot === slot ? "opacity-50" : ""}`}
-              >
-                <TableCell className="w-[40px] text-center cursor-grab active:cursor-grabbing" draggable onDragStart={() => handleDragStart(slot)} onDragOver={handleDragOver} onDrop={() => handleDrop(slot)} onDragEnter={() => setDragOverSlot(slot)} onDragLeave={() => setDragOverSlot(null)} data-testid={`drag-handle-slot-${slot}`}>
-                  <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
-                </TableCell>
-                <TableCell className="font-medium sticky left-0 bg-card z-10" data-testid={`text-timeslot-${slot}`}>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    {slot}
+    <div className="space-y-4">
+      {timeSlots.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
+          <Clock className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">No time slots configured</p>
+          <p className="text-sm">Add a time slot to begin setting headcount requirements.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {timeSlots.map((slot) => (
+            <Card 
+              key={slot}
+              className={`transition-all duration-200 ${dragOverSlot === slot ? "ring-2 ring-primary" : ""} ${draggedSlot === slot ? "opacity-50" : ""}`}
+              data-testid={`card-timeslot-${slot}`}
+            >
+              <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-transparent">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted/50"
+                      draggable 
+                      onDragStart={() => handleDragStart(slot)} 
+                      onDragOver={handleDragOver} 
+                      onDrop={() => handleDrop(slot)} 
+                      onDragEnter={() => setDragOverSlot(slot)} 
+                      onDragLeave={() => setDragOverSlot(null)}
+                      data-testid={`drag-handle-slot-${slot}`}
+                    >
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span data-testid={`text-timeslot-${slot}`}>{slot}</span>
+                    </CardTitle>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium text-muted-foreground mr-2">
+                      Total: <span className="text-foreground font-semibold" data-testid={`text-total-${slot}`}>{getSlotTotal(slot)}</span>
+                    </span>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-muted-foreground h-8 w-8 ml-1"
+                      className="h-8 w-8 text-muted-foreground"
                       onClick={() => handleEditClick(slot)}
                       data-testid={`button-edit-slot-${slot}`}
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={() => onResetTimeSlot(slot)}
+                      data-testid={`button-reset-slot-${slot}`}
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={() => onRemoveTimeSlot(slot)}
+                      data-testid={`button-remove-slot-${slot}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                </TableCell>
-                {QUEUES.map((queue) => {
-                  const customTime = getQueueTimeDisplay(slot, queue);
-                  return (
-                    <TableCell key={queue} className="text-center p-2">
-                      <div className="flex flex-col items-center gap-1">
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {QUEUES.map((queue) => {
+                    const customTime = getQueueTimeDisplay(slot, queue);
+                    return (
+                      <div key={queue} className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">{queue}</Label>
                         <Input
                           type="number"
                           min={0}
                           max={99}
-                          className="w-16 h-9 text-center mx-auto"
+                          className="h-9 text-center"
                           value={headcountData[slot]?.[queue] === 0 ? "" : (headcountData[slot]?.[queue] ?? "")}
                           onChange={(e) =>
                             onHeadcountChange(slot, queue, parseInt(e.target.value) || 0)
@@ -282,7 +304,7 @@ export default function HeadcountTable({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-muted-foreground h-auto py-0.5 px-1"
+                          className="w-full text-xs text-muted-foreground h-7 px-1"
                           onClick={() => handleQueueTimeClick(slot, queue)}
                           disabled={lockedSlots.has(slot)}
                           data-testid={`button-queue-time-${slot}-${queue}`}
@@ -291,47 +313,14 @@ export default function HeadcountTable({
                           {customTime || "Set Time"}
                         </Button>
                       </div>
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-center font-semibold" data-testid={`text-total-${slot}`}>
-                  {getSlotTotal(slot)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => onResetTimeSlot(slot)}
-                      data-testid={`button-reset-slot-${slot}`}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => onRemoveTimeSlot(slot)}
-                      data-testid={`button-remove-slot-${slot}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {timeSlots.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={QUEUES.length + 4} className="text-center py-8 text-muted-foreground">
-                  No time slots configured. Add a time slot to begin.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
@@ -438,7 +427,7 @@ export default function HeadcountTable({
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" className="mt-4 gap-2" data-testid="button-add-timeslot">
+          <Button variant="outline" className="gap-2" data-testid="button-add-timeslot">
             <Plus className="h-4 w-4" />
             Add Custom Time Slot
           </Button>
