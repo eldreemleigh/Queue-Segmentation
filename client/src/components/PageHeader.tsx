@@ -1,5 +1,5 @@
-import { Users } from "lucide-react";
 import { useRef } from "react";
+import teamLogo from "@assets/image_(1)_1764682593904.jpg";
 
 interface PageHeaderProps {
   teamAvatar?: string;
@@ -25,6 +25,8 @@ export default function PageHeader({ teamAvatar, onTeamAvatarChange }: PageHeade
     fileInputRef.current?.click();
   };
 
+  const displayAvatar = teamAvatar || teamLogo;
+
   return (
     <header className="border-b border-border/40 bg-gradient-to-br from-background via-card to-background shadow-md" data-testid="page-header">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
@@ -35,11 +37,7 @@ export default function PageHeader({ teamAvatar, onTeamAvatarChange }: PageHeade
             title="Click to upload team avatar"
             data-testid="button-upload-team-avatar"
           >
-            {teamAvatar ? (
-              <img src={teamAvatar} alt="Team" className="h-14 w-14 rounded-lg object-cover shadow-sm" data-testid="img-team-avatar" />
-            ) : (
-              <Users className="h-14 w-14 text-primary" />
-            )}
+            <img src={displayAvatar} alt="Team Abbeyngers" className="h-14 w-14 rounded-lg object-cover shadow-sm" data-testid="img-team-avatar" />
           </button>
           <input
             ref={fileInputRef}

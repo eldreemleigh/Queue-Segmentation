@@ -14,8 +14,8 @@ interface ProductivitySectionProps {
 }
 
 const QUEUE_DIFFICULTY = [
-  { queue: "SV PGC", difficulty: "Hardest", color: "bg-red-500" },
-  { queue: "LV PGC", difficulty: "Hard", color: "bg-orange-500" },
+  { queue: "LV PGC", difficulty: "Hardest", color: "bg-red-500" },
+  { queue: "SV PGC", difficulty: "Hard", color: "bg-orange-500" },
   { queue: "PM PGC", difficulty: "Medium-Hard", color: "bg-amber-500" },
   { queue: "LV NPGC", difficulty: "Medium", color: "bg-yellow-500" },
   { queue: "PM NPGC", difficulty: "Easy", color: "bg-lime-500" },
