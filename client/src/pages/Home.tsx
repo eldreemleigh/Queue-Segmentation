@@ -7,6 +7,7 @@ import HeadcountTable from "@/components/HeadcountTable";
 import GenerateButton from "@/components/GenerateButton";
 import SegmentationOutput from "@/components/SegmentationOutput";
 import HistoryTable from "@/components/HistoryTable";
+import ProductivitySection from "@/components/ProductivitySection";
 import { useToast } from "@/hooks/use-toast";
 import {
   Agent,
@@ -177,6 +178,24 @@ export default function Home() {
       return "";
     }
   });
+
+  const [productivityImage, setProductivityImage] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_productivityImage");
+      return saved ? saved : "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [productivityQuota, setProductivityQuota] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("qsg_productivityQuota");
+      return saved ? Number(saved) : 101;
+    } catch {
+      return 101;
+    }
+  });
   
   const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>(() => {
     try {
@@ -255,6 +274,8 @@ export default function Home() {
         localStorage.removeItem("qsg_results");
         localStorage.removeItem("qsg_hasGenerated");
         localStorage.removeItem("qsg_lockedSlots");
+        localStorage.removeItem("qsg_productivityImage");
+        localStorage.removeItem("qsg_productivityQuota");
         window.location.reload();
       }
     };
@@ -296,6 +317,14 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("qsg_teamAvatar", teamAvatar);
   }, [teamAvatar]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_productivityImage", productivityImage);
+  }, [productivityImage]);
+
+  useEffect(() => {
+    localStorage.setItem("qsg_productivityQuota", String(productivityQuota));
+  }, [productivityQuota]);
 
   const handleStatusChange = (agentId: string, status: AgentStatus) => {
     setAgents((prev) =>
@@ -716,16 +745,25 @@ export default function Home() {
           />
         </SectionCard>
 
+        <SectionCard sectionNumber={4} title="Team Productivity">
+          <ProductivitySection
+            productivityImage={productivityImage}
+            productivityQuota={productivityQuota}
+            onImageChange={setProductivityImage}
+            onQuotaChange={setProductivityQuota}
+          />
+        </SectionCard>
+
         <div className="mb-8">
           <GenerateButton onClick={generateSegmentation} isLoading={isGenerating} />
         </div>
 
-        <SectionCard sectionNumber={4} title="Segmentation Output">
+        <SectionCard sectionNumber={5} title="Segmentation Output">
           <SegmentationOutput results={results} hasGenerated={hasGenerated} />
         </SectionCard>
 
         {results.length > 0 && (
-          <SectionCard sectionNumber={5} title="Assignment History">
+          <SectionCard sectionNumber={6} title="Assignment History">
             <HistoryTable agents={agents} />
           </SectionCard>
         )}
