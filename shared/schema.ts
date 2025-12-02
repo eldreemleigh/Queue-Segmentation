@@ -27,6 +27,7 @@ export const agents = pgTable("agents", {
   total: integer("total").notNull().default(0),
   avatar: text("avatar"),
   sortOrder: integer("sort_order").notNull().default(0),
+  productivity: integer("productivity").notNull().default(0),
 });
 
 export const insertAgentSchema = createInsertSchema(agents).omit({ id: true });

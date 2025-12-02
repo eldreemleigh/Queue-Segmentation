@@ -78,6 +78,7 @@ export class MemStorage implements IStorage {
       total: agent.total || 0,
       avatar: agent.avatar || null,
       sortOrder: maxOrder + 1,
+      productivity: agent.productivity || 0,
     };
     this.agentMap.set(id, newAgent);
     return newAgent;

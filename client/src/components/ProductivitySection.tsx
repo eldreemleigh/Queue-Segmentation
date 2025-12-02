@@ -1,16 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Upload, Clipboard, Image, Target, TrendingUp, ArrowRight } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Target, TrendingUp, ArrowRight, Users, AlertTriangle } from "lucide-react";
+import { Agent } from "@/lib/types";
 
 interface ProductivitySectionProps {
-  productivityImage: string;
   productivityQuota: number;
-  onImageChange: (image: string) => void;
   onQuotaChange: (quota: number) => void;
+  presentAgents: Agent[];
+  onAgentProductivityChange: (agentId: string, productivity: number) => void;
 }
 
 const QUEUE_DIFFICULTY = [
@@ -23,80 +22,14 @@ const QUEUE_DIFFICULTY = [
 ];
 
 export default function ProductivitySection({
-  productivityImage,
   productivityQuota,
-  onImageChange,
   onQuotaChange,
+  presentAgents,
+  onAgentProductivityChange,
 }: ProductivitySectionProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
-
-  const handleImageUpload = (file: File) => {
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onImageChange(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleImageUpload(file);
-    }
-  };
-
-  const handlePaste = useCallback((e: ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith("image/")) {
-          const file = items[i].getAsFile();
-          if (file) {
-            handleImageUpload(file);
-            break;
-          }
-        }
-      }
-    }
-  }, [onImageChange]);
-
-  useEffect(() => {
-    document.addEventListener("paste", handlePaste);
-    return () => {
-      document.removeEventListener("paste", handlePaste);
-    };
-  }, [handlePaste]);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleImageUpload(file);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    onImageChange("");
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  const agentsBelowQuota = presentAgents.filter(
+    (agent) => (agent.productivity || 0) < productivityQuota
+  );
 
   return (
     <div className="space-y-6" data-testid="productivity-section">
@@ -164,104 +97,96 @@ export default function ProductivitySection({
               </div>
             </div>
           </div>
-
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Image className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-foreground">Productivity Screenshot</h3>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold text-foreground">Agent Productivity</h3>
+            </div>
+            {agentsBelowQuota.length > 0 && (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {agentsBelowQuota.length} below quota
+              </Badge>
+            )}
           </div>
           
-          {!productivityImage ? (
-            <div
-              ref={dropZoneRef}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              data-testid="dropzone-screenshot"
-              className={`
-                border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200
-                ${isDragging 
-                  ? "border-primary bg-primary/5" 
-                  : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
-                }
-              `}
-            >
+          {presentAgents.length === 0 ? (
+            <div className="border-2 border-dashed rounded-lg p-6 text-center border-muted-foreground/30">
               <div className="flex flex-col items-center gap-3">
                 <div className="p-3 rounded-full bg-muted">
-                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <Users className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">
-                    Drop your screenshot here
+                    No present agents
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    or click to upload, or press Ctrl+V to paste
+                    Mark agents as PRESENT in the Attendance section to track their productivity
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="gap-2"
-                    data-testid="button-upload-screenshot"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.read().then((items) => {
-                        for (const item of items) {
-                          const imageType = item.types.find((type) => type.startsWith("image/"));
-                          if (imageType) {
-                            item.getType(imageType).then((blob) => {
-                              handleImageUpload(new File([blob], "pasted-image.png", { type: imageType }));
-                            });
-                          }
-                        }
-                      }).catch(() => {});
-                    }}
-                    className="gap-2"
-                    data-testid="button-paste-screenshot"
-                  >
-                    <Clipboard className="h-4 w-4" />
-                    Paste
-                  </Button>
-                </div>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-                data-testid="input-file-screenshot"
-              />
             </div>
           ) : (
-            <Card className="relative overflow-hidden" data-testid="card-screenshot-preview">
-              <img
-                src={productivityImage}
-                alt="Productivity Screenshot"
-                className="w-full h-auto max-h-80 object-contain bg-muted/20"
-                data-testid="image-productivity-screenshot"
-              />
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleRemoveImage}
-                className="absolute top-2 right-2 gap-1"
-                data-testid="button-remove-screenshot"
-              >
-                <Trash2 className="h-4 w-4" />
-                Remove
-              </Button>
-            </Card>
+            <ScrollArea className="h-[280px] pr-4">
+              <div className="space-y-2">
+                {presentAgents.map((agent) => {
+                  const productivity = agent.productivity || 0;
+                  const isBelowQuota = productivity < productivityQuota;
+                  
+                  return (
+                    <div
+                      key={agent.id}
+                      className={`flex items-center justify-between gap-3 p-3 rounded-lg border transition-colors ${
+                        isBelowQuota 
+                          ? "bg-amber-500/5 border-amber-500/30" 
+                          : "bg-muted/30 border-transparent"
+                      }`}
+                      data-testid={`row-productivity-${agent.id}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span 
+                          className="font-medium text-sm truncate"
+                          data-testid={`text-agent-name-${agent.id}`}
+                        >
+                          {agent.nickname}
+                        </span>
+                        {isBelowQuota && (
+                          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={200}
+                          value={productivity}
+                          onChange={(e) => {
+                            const value = Math.max(0, Math.min(200, Number(e.target.value) || 0));
+                            onAgentProductivityChange(agent.id, value);
+                          }}
+                          className={`w-20 text-center text-sm font-semibold ${
+                            isBelowQuota ? "border-amber-500/50" : ""
+                          }`}
+                          data-testid={`input-productivity-${agent.id}`}
+                        />
+                        <span className="text-sm font-bold text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+          
+          {presentAgents.length > 0 && (
+            <div className="mt-4 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+              <p>
+                Agents below {productivityQuota}% will be prioritized for easier queues in the next segmentation.
+              </p>
+            </div>
           )}
         </div>
       </div>

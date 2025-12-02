@@ -8,6 +8,7 @@ import GenerateButton from "@/components/GenerateButton";
 import SegmentationOutput from "@/components/SegmentationOutput";
 import HistoryTable from "@/components/HistoryTable";
 import ProductivitySection from "@/components/ProductivitySection";
+import TimeSlotWarning from "@/components/TimeSlotWarning";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -170,7 +171,6 @@ export default function Home() {
   
   const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
   const [teamAvatar, setTeamAvatar] = useState<string>("");
-  const [productivityImage, setProductivityImage] = useState<string>("");
   const [productivityQuota, setProductivityQuota] = useState<number>(101);
   const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>({});
   const [timeSlots, setTimeSlots] = useState<string[]>([...DEFAULT_TIME_SLOTS]);
@@ -200,8 +200,8 @@ export default function Home() {
     }, 500);
   }, [saveToDatabase]);
 
-  const saveAgentToDatabase = useCallback(async (agent: Agent, operation: "create" | "update" | "delete") => {
-    if (isLoadingRef.current) return;
+  const saveAgentToDatabase = useCallback(async (agent: Agent, operation: "create" | "update" | "delete", skipLoadingCheck = false) => {
+    if (!skipLoadingCheck && isLoadingRef.current) return;
     try {
       if (operation === "create") {
         await apiRequest("POST", "/api/agents", {
@@ -212,6 +212,7 @@ export default function Home() {
           assignments: agent.assignments,
           total: agent.total,
           avatar: agent.avatar || null,
+          productivity: agent.productivity || 0,
         });
       } else if (operation === "update") {
         await apiRequest("PATCH", `/api/agents/${agent.id}`, {
@@ -222,6 +223,7 @@ export default function Home() {
           assignments: agent.assignments,
           total: agent.total,
           avatar: agent.avatar || null,
+          productivity: agent.productivity || 0,
         });
       } else if (operation === "delete") {
         await apiRequest("DELETE", `/api/agents/${agent.id}`);
@@ -251,6 +253,7 @@ export default function Home() {
               assignments: a.assignments || {},
               total: a.total || 0,
               avatar: a.avatar,
+              productivity: a.productivity || 0,
             }));
             setAgents(mappedAgents);
           } else {
@@ -262,6 +265,7 @@ export default function Home() {
                 status: agent.status,
                 assignments: agent.assignments,
                 total: agent.total,
+                productivity: agent.productivity || 0,
               });
             }
             const refreshRes = await fetch("/api/agents");
@@ -276,6 +280,7 @@ export default function Home() {
                 assignments: a.assignments || {},
                 total: a.total || 0,
                 avatar: a.avatar,
+                productivity: a.productivity || 0,
               }));
               setAgents(mappedAgents);
             }
@@ -299,9 +304,6 @@ export default function Home() {
             }
             if (state.queueTimeSlots && Object.keys(state.queueTimeSlots).length > 0) {
               setQueueTimeSlots(state.queueTimeSlots);
-            }
-            if (state.productivityImage) {
-              setProductivityImage(state.productivityImage);
             }
             if (state.productivityQuota !== undefined) {
               setProductivityQuota(state.productivityQuota);
@@ -380,11 +382,6 @@ export default function Home() {
     if (!isDataLoaded) return;
     debouncedSave({ lockedSlots: Array.from(lockedSlots) });
   }, [lockedSlots, isDataLoaded, debouncedSave]);
-
-  useEffect(() => {
-    if (!isDataLoaded) return;
-    debouncedSave({ productivityImage });
-  }, [productivityImage, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
     if (!isDataLoaded) return;
@@ -478,6 +475,20 @@ export default function Home() {
     toast({
       title: "Agent Updated",
       description: `${updatedAgent.nickname} has been updated.`,
+    });
+  };
+
+  const handleAgentProductivityChange = (agentId: string, productivity: number) => {
+    setAgents((prev) => {
+      const updated = prev.map((a) => {
+        if (a.id === agentId) {
+          const newAgent = { ...a, productivity };
+          saveAgentToDatabase(newAgent, "update");
+          return newAgent;
+        }
+        return a;
+      });
+      return updated;
     });
   };
 
@@ -895,23 +906,27 @@ export default function Home() {
 
       setBreakTimes(updatedBreakTimes);
 
-      setAgents((prev) =>
-        prev.map((agent) => {
-          const updated = agentsCopy.find((a) => a.id === agent.id);
-          if (updated) {
-            return {
-              ...agent,
-              assignments: updated.assignments,
-              total: updated.total,
-            };
-          }
+      const updatedAgentsList = agents.map((agent) => {
+        const updated = agentsCopy.find((a) => a.id === agent.id);
+        if (updated) {
           return {
             ...agent,
-            assignments: {},
-            total: 0,
+            assignments: updated.assignments,
+            total: updated.total,
           };
-        })
-      );
+        }
+        return {
+          ...agent,
+          assignments: {},
+          total: 0,
+        };
+      });
+      
+      setAgents(updatedAgentsList);
+      
+      updatedAgentsList.forEach((agent) => {
+        saveAgentToDatabase(agent, "update", true);
+      });
 
       setResults(newResults);
       const newLockedSlots = new Set(newResults.filter((r) => r.locked).map((r) => r.slot));
@@ -1004,6 +1019,8 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <PageHeader teamAvatar={teamAvatar} onTeamAvatarChange={setTeamAvatar} />
       
+      <TimeSlotWarning timeSlots={timeSlots} lockedSlots={lockedSlots} />
+      
       <main className="max-w-7xl mx-auto px-6 md:px-8 py-12">
         <SectionCard sectionNumber={1} title="Attendance">
           <AttendanceTable
@@ -1045,10 +1062,10 @@ export default function Home() {
 
         <SectionCard sectionNumber={4} title="Team Productivity">
           <ProductivitySection
-            productivityImage={productivityImage}
             productivityQuota={productivityQuota}
-            onImageChange={setProductivityImage}
             onQuotaChange={setProductivityQuota}
+            presentAgents={agents.filter((a) => a.status === "PRESENT")}
+            onAgentProductivityChange={handleAgentProductivityChange}
           />
         </SectionCard>
 

@@ -9,6 +9,7 @@ export interface Agent {
   assignments: Record<string, number>;
   total: number;
   avatar?: string;
+  productivity?: number;
 }
 
 export type Queue = "PM PGC" | "SV PGC" | "LV PGC" | "PM NPGC" | "SV NPGC" | "LV NPGC";
