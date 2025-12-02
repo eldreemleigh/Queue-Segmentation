@@ -50,9 +50,20 @@ export const REST_DAY_OPTIONS = [
   "Sat-Sun",
 ];
 
+export interface QueueTimeSlot {
+  startTime: string;
+  endTime: string;
+}
+
 export interface HeadcountData {
   [slot: string]: {
     [queue: string]: number;
+  };
+}
+
+export interface QueueTimeSlotData {
+  [slot: string]: {
+    [queue: string]: QueueTimeSlot;
   };
 }
 
@@ -60,8 +71,10 @@ export interface SegmentationResult {
   slot: string;
   totalRequired: number;
   assignments: Record<string, string[]>;
+  queueTimeSlots?: Record<string, QueueTimeSlot>;
   warning?: string;
   locked?: boolean;
+  isEdited?: boolean;
 }
 
 export interface BreakSlot {

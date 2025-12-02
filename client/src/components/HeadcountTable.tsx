@@ -27,14 +27,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { HeadcountData, QUEUES } from "@/lib/types";
+import { HeadcountData, QUEUES, QueueTimeSlotData, QueueTimeSlot } from "@/lib/types";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface HeadcountTableProps {
   headcountData: HeadcountData;
   timeSlots: string[];
   lockedSlots: Set<string>;
+  queueTimeSlots: QueueTimeSlotData;
   onHeadcountChange: (slot: string, queue: string, value: number) => void;
+  onQueueTimeSlotChange: (slot: string, queue: string, timeSlot: QueueTimeSlot) => void;
   onAddTimeSlot: (slot: string) => void;
   onRemoveTimeSlot: (slot: string) => void;
   onResetTimeSlot: (slot: string) => void;
@@ -51,7 +53,9 @@ export default function HeadcountTable({
   headcountData,
   timeSlots,
   lockedSlots = new Set(),
+  queueTimeSlots = {},
   onHeadcountChange,
+  onQueueTimeSlotChange,
   onAddTimeSlot,
   onRemoveTimeSlot,
   onResetTimeSlot,
@@ -61,7 +65,9 @@ export default function HeadcountTable({
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isQueueTimeDialogOpen, setIsQueueTimeDialogOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
+  const [editingQueueSlot, setEditingQueueSlot] = useState<{ slot: string; queue: string } | null>(null);
   const [draggedSlot, setDraggedSlot] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [startHour, setStartHour] = useState("10");
@@ -76,6 +82,12 @@ export default function HeadcountTable({
   const [editEndHour, setEditEndHour] = useState("11");
   const [editEndMinute, setEditEndMinute] = useState("00");
   const [editEndPeriod, setEditEndPeriod] = useState("AM");
+  const [queueStartHour, setQueueStartHour] = useState("10");
+  const [queueStartMinute, setQueueStartMinute] = useState("00");
+  const [queueStartPeriod, setQueueStartPeriod] = useState("AM");
+  const [queueEndHour, setQueueEndHour] = useState("11");
+  const [queueEndMinute, setQueueEndMinute] = useState("00");
+  const [queueEndPeriod, setQueueEndPeriod] = useState("AM");
 
   const getSlotTotal = (slot: string): number => {
     if (!headcountData[slot]) return 0;
@@ -127,6 +139,57 @@ export default function HeadcountTable({
       setIsEditDialogOpen(false);
       setEditingSlot(null);
     }
+  };
+
+  const handleQueueTimeClick = (slot: string, queue: string) => {
+    const queueSlot = queueTimeSlots[slot]?.[queue];
+    if (queueSlot) {
+      const [startTime, startPd] = queueSlot.startTime.split(" ");
+      const [startH, startM] = startTime.split(":");
+      const [endTime, endPd] = queueSlot.endTime.split(" ");
+      const [endH, endM] = endTime.split(":");
+      setQueueStartHour(startH);
+      setQueueStartMinute(startM);
+      setQueueStartPeriod(startPd);
+      setQueueEndHour(endH);
+      setQueueEndMinute(endM);
+      setQueueEndPeriod(endPd);
+    } else {
+      const [start, end] = slot.split(" - ");
+      const [startTime, startPd] = start.trim().split(" ");
+      const [startH, startM] = startTime.split(":");
+      const [endTime, endPd] = end.trim().split(" ");
+      const [endH, endM] = endTime.split(":");
+      setQueueStartHour(startH);
+      setQueueStartMinute(startM);
+      setQueueStartPeriod(startPd);
+      setQueueEndHour(endH);
+      setQueueEndMinute(endM);
+      setQueueEndPeriod(endPd);
+    }
+    setEditingQueueSlot({ slot, queue });
+    setIsQueueTimeDialogOpen(true);
+  };
+
+  const handleSaveQueueTime = () => {
+    if (!editingQueueSlot) return;
+    const startTime = formatTime(queueStartHour, queueStartMinute, queueStartPeriod);
+    const endTime = formatTime(queueEndHour, queueEndMinute, queueEndPeriod);
+    onQueueTimeSlotChange(editingQueueSlot.slot, editingQueueSlot.queue, { startTime, endTime });
+    setIsQueueTimeDialogOpen(false);
+    setEditingQueueSlot(null);
+  };
+
+  const getQueueTimeDisplay = (slot: string, queue: string): string | null => {
+    const queueSlot = queueTimeSlots[slot]?.[queue];
+    if (!queueSlot) return null;
+    const defaultSlotTimes = slot.split(" - ");
+    const defaultStart = defaultSlotTimes[0].trim();
+    const defaultEnd = defaultSlotTimes[1].trim();
+    if (queueSlot.startTime === defaultStart && queueSlot.endTime === defaultEnd) {
+      return null;
+    }
+    return `${queueSlot.startTime} - ${queueSlot.endTime}`;
   };
 
   const handleDragStart = (slot: string) => {
@@ -199,22 +262,38 @@ export default function HeadcountTable({
                     </Button>
                   </div>
                 </TableCell>
-                {QUEUES.map((queue) => (
-                  <TableCell key={queue} className="text-center p-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={99}
-                      className="w-16 h-9 text-center mx-auto"
-                      value={headcountData[slot]?.[queue] === 0 ? "" : (headcountData[slot]?.[queue] ?? "")}
-                      onChange={(e) =>
-                        onHeadcountChange(slot, queue, parseInt(e.target.value) || 0)
-                      }
-                      disabled={lockedSlots.has(slot)}
-                      data-testid={`input-hc-${slot}-${queue}`}
-                    />
-                  </TableCell>
-                ))}
+                {QUEUES.map((queue) => {
+                  const customTime = getQueueTimeDisplay(slot, queue);
+                  return (
+                    <TableCell key={queue} className="text-center p-2">
+                      <div className="flex flex-col items-center gap-1">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={99}
+                          className="w-16 h-9 text-center mx-auto"
+                          value={headcountData[slot]?.[queue] === 0 ? "" : (headcountData[slot]?.[queue] ?? "")}
+                          onChange={(e) =>
+                            onHeadcountChange(slot, queue, parseInt(e.target.value) || 0)
+                          }
+                          disabled={lockedSlots.has(slot)}
+                          data-testid={`input-hc-${slot}-${queue}`}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground h-auto py-0.5 px-1"
+                          onClick={() => handleQueueTimeClick(slot, queue)}
+                          disabled={lockedSlots.has(slot)}
+                          data-testid={`button-queue-time-${slot}-${queue}`}
+                        >
+                          <Clock className="h-3 w-3 mr-1" />
+                          {customTime || "Set Time"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  );
+                })}
                 <TableCell className="text-center font-semibold" data-testid={`text-total-${slot}`}>
                   {getSlotTotal(slot)}
                 </TableCell>
@@ -461,6 +540,114 @@ export default function HeadcountTable({
             <Button onClick={handleAddTimeSlot} data-testid="button-submit-add-slot">
               <Plus className="h-4 w-4 mr-2" />
               Add Time Slot
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQueueTimeDialogOpen} onOpenChange={setIsQueueTimeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Queue Time Slot</DialogTitle>
+            {editingQueueSlot && (
+              <p className="text-sm text-muted-foreground">
+                Setting custom time for {editingQueueSlot.queue} in {editingQueueSlot.slot}
+              </p>
+            )}
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Start Time</Label>
+              <div className="flex gap-2">
+                <Select value={queueStartHour} onValueChange={setQueueStartHour}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-queue-start-hour">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <Select value={queueStartMinute} onValueChange={setQueueStartMinute}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-queue-start-minute">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={queueStartPeriod} onValueChange={setQueueStartPeriod}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-queue-start-period">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>End Time</Label>
+              <div className="flex gap-2">
+                <Select value={queueEndHour} onValueChange={setQueueEndHour}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-queue-end-hour">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <Select value={queueEndMinute} onValueChange={setQueueEndMinute}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-queue-end-minute">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={queueEndPeriod} onValueChange={setQueueEndPeriod}>
+                  <SelectTrigger className="w-[70px]" data-testid="select-queue-end-period">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-cancel-queue-time">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveQueueTime} data-testid="button-submit-queue-time">
+              <Clock className="h-4 w-4 mr-2" />
+              Set Time
             </Button>
           </DialogFooter>
         </DialogContent>

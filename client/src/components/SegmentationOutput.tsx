@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from "react";
-import { AlertTriangle, Users, Lock, Copy, Image } from "lucide-react";
+import { AlertTriangle, Users, Lock, Copy, Image, Edit2, Check, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -9,7 +9,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SegmentationResult, QUEUES } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { SegmentationResult, QUEUES, Agent } from "@/lib/types";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from "html2canvas";
@@ -17,17 +33,24 @@ import html2canvas from "html2canvas";
 interface SegmentationOutputProps {
   results: SegmentationResult[];
   hasGenerated: boolean;
+  agents?: Agent[];
+  onUpdateAssignments?: (slot: string, queue: string, agents: string[]) => void;
 }
 
 export default function SegmentationOutput({
   results,
   hasGenerated,
+  agents = [],
+  onUpdateAssignments,
 }: SegmentationOutputProps) {
   const tableRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
   const [isCopying, setIsCopying] = useState(false);
   const [copyingSlot, setCopyingSlot] = useState<string | null>(null);
   const { toast } = useToast();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingCell, setEditingCell] = useState<{ slot: string; queue: string } | null>(null);
+  const [editingAgents, setEditingAgents] = useState<string[]>([]);
 
   const handleCopyAsImage = async () => {
     if (!tableRef.current) return;
@@ -182,6 +205,52 @@ export default function SegmentationOutput({
     }
   }, [toast]);
 
+  const handleOpenEditDialog = (slot: string, queue: string, currentAgents: string[]) => {
+    setEditingCell({ slot, queue });
+    setEditingAgents([...currentAgents]);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingCell && onUpdateAssignments) {
+      onUpdateAssignments(editingCell.slot, editingCell.queue, editingAgents);
+      toast({
+        title: "Assignments Updated",
+        description: `Updated ${editingCell.queue} assignments for ${editingCell.slot}`,
+      });
+    }
+    setEditDialogOpen(false);
+    setEditingCell(null);
+    setEditingAgents([]);
+  };
+
+  const handleAddAgentToEdit = (agentNickname: string) => {
+    if (!editingAgents.includes(agentNickname)) {
+      setEditingAgents([...editingAgents, agentNickname]);
+    }
+  };
+
+  const handleRemoveAgentFromEdit = (index: number) => {
+    setEditingAgents(editingAgents.filter((_, i) => i !== index));
+  };
+
+  const getAvailableAgentsForEdit = () => {
+    if (!editingCell) return [];
+    const result = results.find((r) => r.slot === editingCell.slot);
+    if (!result) return agents.filter((a) => a.status === "PRESENT");
+    
+    const alreadyAssignedThisSlot = new Set<string>();
+    Object.entries(result.assignments).forEach(([q, assigned]) => {
+      if (q !== editingCell.queue) {
+        assigned.forEach((a) => alreadyAssignedThisSlot.add(a));
+      }
+    });
+    
+    return agents.filter(
+      (a) => a.status === "PRESENT" && !alreadyAssignedThisSlot.has(a.nickname) && !editingAgents.includes(a.nickname)
+    );
+  };
+
   if (!hasGenerated) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground" data-testid="text-segmentation-placeholder">
@@ -277,12 +346,24 @@ export default function SegmentationOutput({
                     className={`text-center py-3 ${idx === QUEUES.length - 1 ? "" : "border-r-2 border-border/70"}`}
                     data-testid={`text-assignments-${result.slot}-${queue}`}
                   >
-                    <div className="flex flex-col divide-y divide-border/50">
-                      {result.assignments[queue]?.map((nickname, idx) => (
-                        <span key={idx} className="text-sm font-medium py-1 first:pt-0 last:pb-0">
+                    <div className="flex flex-col divide-y divide-border/50 group relative">
+                      {result.assignments[queue]?.map((nickname, i) => (
+                        <span key={i} className="text-sm font-medium py-1 first:pt-0 last:pb-0">
                           {nickname}
                         </span>
                       ))}
+                      {onUpdateAssignments && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleOpenEditDialog(result.slot, queue, result.assignments[queue] || [])}
+                          data-testid={`button-edit-${result.slot}-${queue}`}
+                          aria-label={`Edit ${queue} assignments for ${result.slot}`}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 ))}
@@ -293,6 +374,74 @@ export default function SegmentationOutput({
       </Table>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Edit {editingCell?.queue} Assignments
+              <span className="block text-sm font-normal text-muted-foreground mt-1">
+                {editingCell?.slot}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Current Agents</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {editingAgents.length === 0 ? (
+                  <span className="text-sm text-muted-foreground">No agents assigned</span>
+                ) : (
+                  editingAgents.map((agent, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-1 bg-secondary text-secondary-foreground rounded-md px-2 py-1 text-sm"
+                    >
+                      <span>{agent}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 hover:bg-destructive/20"
+                        onClick={() => handleRemoveAgentFromEdit(index)}
+                        data-testid={`button-remove-agent-${agent}`}
+                        aria-label={`Remove ${agent} from assignment`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Add Agent</Label>
+              <Select onValueChange={handleAddAgentToEdit}>
+                <SelectTrigger className="mt-2" data-testid="select-add-agent">
+                  <SelectValue placeholder="Select an agent to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableAgentsForEdit().map((agent) => (
+                    <SelectItem key={agent.id} value={agent.nickname}>
+                      {agent.nickname}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-cancel-edit">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button onClick={handleSaveEdit} data-testid="button-save-edit">
+              <Check className="h-4 w-4 mr-2" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

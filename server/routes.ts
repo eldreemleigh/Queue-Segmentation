@@ -64,6 +64,7 @@ export async function registerRoutes(
           timeSlots: [],
           lockedSlots: [],
           segmentationResults: [],
+          queueTimeSlots: {},
           productivityImage: "",
           productivityQuota: 100,
           hasGenerated: "false",

@@ -22,6 +22,8 @@ import {
   QUEUE_DIFFICULTY_ORDER,
   QUEUE_QUOTAS,
   Queue,
+  QueueTimeSlotData,
+  QueueTimeSlot,
 } from "@/lib/types";
 
 // todo: remove mock functionality - initial agents
@@ -173,6 +175,7 @@ export default function Home() {
   const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>({});
   const [timeSlots, setTimeSlots] = useState<string[]>([...DEFAULT_TIME_SLOTS]);
   const [headcountData, setHeadcountData] = useState<HeadcountData>(initHeadcount(DEFAULT_TIME_SLOTS));
+  const [queueTimeSlots, setQueueTimeSlots] = useState<QueueTimeSlotData>({});
   const [results, setResults] = useState<SegmentationResult[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
@@ -294,6 +297,9 @@ export default function Home() {
             if (state.segmentationResults) {
               setResults(state.segmentationResults);
             }
+            if (state.queueTimeSlots && Object.keys(state.queueTimeSlots).length > 0) {
+              setQueueTimeSlots(state.queueTimeSlots);
+            }
             if (state.productivityImage) {
               setProductivityImage(state.productivityImage);
             }
@@ -354,6 +360,11 @@ export default function Home() {
     if (!isDataLoaded) return;
     debouncedSave({ headcountData });
   }, [headcountData, isDataLoaded, debouncedSave]);
+
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    debouncedSave({ queueTimeSlots });
+  }, [queueTimeSlots, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
     if (!isDataLoaded) return;
@@ -531,6 +542,16 @@ export default function Home() {
       [slot]: {
         ...prev[slot],
         [queue]: Math.max(0, Math.min(99, value)),
+      },
+    }));
+  };
+
+  const handleQueueTimeSlotChange = (slot: string, queue: string, timeSlot: QueueTimeSlot) => {
+    setQueueTimeSlots((prev) => ({
+      ...prev,
+      [slot]: {
+        ...prev[slot],
+        [queue]: timeSlot,
       },
     }));
   };
@@ -926,6 +947,59 @@ export default function Home() {
     }, 300);
   };
 
+  const handleUpdateAssignments = (slot: string, queue: string, newAgents: string[]) => {
+    setResults((prev) => {
+      const updatedResults = prev.map((result) => {
+        if (result.slot === slot) {
+          const oldAgents = result.assignments[queue] || [];
+          
+          const addedAgents = newAgents.filter((a) => !oldAgents.includes(a));
+          const removedAgents = oldAgents.filter((a) => !newAgents.includes(a));
+          
+          setAgents((prevAgents) =>
+            prevAgents.map((agent) => {
+              if (addedAgents.includes(agent.nickname)) {
+                const newAssignments = { ...agent.assignments };
+                newAssignments[queue] = (newAssignments[queue] || 0) + 1;
+                const updatedAgent = {
+                  ...agent,
+                  assignments: newAssignments,
+                  total: agent.total + 1,
+                };
+                saveAgentToDatabase(updatedAgent, "update");
+                return updatedAgent;
+              }
+              if (removedAgents.includes(agent.nickname)) {
+                const newAssignments = { ...agent.assignments };
+                newAssignments[queue] = Math.max((newAssignments[queue] || 0) - 1, 0);
+                const updatedAgent = {
+                  ...agent,
+                  assignments: newAssignments,
+                  total: Math.max(agent.total - 1, 0),
+                };
+                saveAgentToDatabase(updatedAgent, "update");
+                return updatedAgent;
+              }
+              return agent;
+            })
+          );
+          
+          return {
+            ...result,
+            assignments: {
+              ...result.assignments,
+              [queue]: newAgents,
+            },
+          };
+        }
+        return result;
+      });
+      
+      debouncedSave({ segmentationResults: updatedResults });
+      return updatedResults;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <PageHeader teamAvatar={teamAvatar} onTeamAvatarChange={setTeamAvatar} />
@@ -957,7 +1031,9 @@ export default function Home() {
             headcountData={headcountData}
             timeSlots={timeSlots}
             lockedSlots={lockedSlots}
+            queueTimeSlots={queueTimeSlots}
             onHeadcountChange={handleHeadcountChange}
+            onQueueTimeSlotChange={handleQueueTimeSlotChange}
             onAddTimeSlot={handleAddTimeSlot}
             onRemoveTimeSlot={handleRemoveTimeSlot}
             onResetTimeSlot={handleResetTimeSlot}
@@ -981,7 +1057,12 @@ export default function Home() {
         </div>
 
         <SectionCard sectionNumber={5} title="Segmentation Output">
-          <SegmentationOutput results={results} hasGenerated={hasGenerated} />
+          <SegmentationOutput 
+            results={results} 
+            hasGenerated={hasGenerated}
+            agents={agents}
+            onUpdateAssignments={handleUpdateAssignments}
+          />
         </SectionCard>
 
         {results.length > 0 && (

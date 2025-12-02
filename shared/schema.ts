@@ -39,6 +39,7 @@ export const appState = pgTable("app_state", {
   timeSlots: text("time_slots").array().notNull().default([]),
   lockedSlots: text("locked_slots").array().notNull().default([]),
   segmentationResults: jsonb("segmentation_results").notNull().default([]),
+  queueTimeSlots: jsonb("queue_time_slots").notNull().default({}),
   productivityImage: text("productivity_image").default(""),
   productivityQuota: integer("productivity_quota").notNull().default(100),
   hasGenerated: text("has_generated").notNull().default("false"),
