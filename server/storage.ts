@@ -23,6 +23,7 @@ export interface IStorage {
   createAgent(agent: InsertAgent): Promise<DbAgent>;
   updateAgent(id: string, agent: Partial<InsertAgent>): Promise<DbAgent | undefined>;
   deleteAgent(id: string): Promise<void>;
+  deleteAllAgents(): Promise<void>;
   updateAgentOrder(agents: { id: string; sortOrder: number }[]): Promise<void>;
   
   getAppState(): Promise<AppState | undefined>;
@@ -94,6 +95,10 @@ export class MemStorage implements IStorage {
 
   async deleteAgent(id: string): Promise<void> {
     this.agentMap.delete(id);
+  }
+
+  async deleteAllAgents(): Promise<void> {
+    this.agentMap.clear();
   }
 
   async updateAgentOrder(agentOrders: { id: string; sortOrder: number }[]): Promise<void> {
@@ -189,6 +194,11 @@ export class DatabaseStorage implements IStorage {
   async deleteAgent(id: string): Promise<void> {
     if (!db) throw new Error("Database not available");
     await db.delete(agents).where(eq(agents.id, id));
+  }
+
+  async deleteAllAgents(): Promise<void> {
+    if (!db) throw new Error("Database not available");
+    await db.delete(agents);
   }
 
   async updateAgentOrder(agentOrders: { id: string; sortOrder: number }[]): Promise<void> {

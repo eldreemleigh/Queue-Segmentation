@@ -46,6 +46,15 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/agents", async (req, res) => {
+    try {
+      await storage.deleteAllAgents();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete all agents" });
+    }
+  });
+
   app.post("/api/agents/reorder", async (req, res) => {
     try {
       await storage.updateAgentOrder(req.body.agents);
