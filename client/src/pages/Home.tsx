@@ -18,6 +18,9 @@ import {
   SegmentationResult,
   QUEUES,
   DEFAULT_TIME_SLOTS,
+  QUEUE_DIFFICULTY_ORDER,
+  QUEUE_QUOTAS,
+  Queue,
 } from "@/lib/types";
 
 // todo: remove mock functionality - initial agents
@@ -596,25 +599,85 @@ export default function Home() {
           return;
         }
 
-        const sorted = [...availableAgents].sort(
-          (a, b) => a.total - b.total || Math.random() - 0.5
-        );
-
-        let idx = 0;
         const assigns: Record<string, string[]> = {};
         const agentsAssignedThisSlot: string[] = [];
+        let remainingAgents = [...availableAgents];
 
         QUEUES.forEach((q) => {
           assigns[q] = [];
-          for (let i = 0; i < (req[q] || 0); i++) {
-            const agent = sorted[idx++];
+        });
+
+        QUEUE_DIFFICULTY_ORDER.forEach((queue) => {
+          const queueReq = req[queue] || 0;
+          if (queueReq === 0) return;
+
+          const queueQuota = QUEUE_QUOTAS.find((q) => q.queue === queue);
+          const hourlyQuota = queueQuota?.hourlyQuota || 50;
+          const targetQuota = queueQuota?.targetQuota || 400;
+
+          const unassignedAgents = remainingAgents.filter(
+            (a) => !agentsAssignedThisSlot.includes(a.id)
+          );
+
+          const sorted = [...unassignedAgents].sort((a, b) => {
+            const aHardQueueAssignments = QUEUE_DIFFICULTY_ORDER.slice(0, 3)
+              .reduce((sum, q) => sum + (a.assignments[q] || 0), 0);
+            const bHardQueueAssignments = QUEUE_DIFFICULTY_ORDER.slice(0, 3)
+              .reduce((sum, q) => sum + (b.assignments[q] || 0), 0);
+
+            const difficultyIndex = QUEUE_DIFFICULTY_ORDER.indexOf(queue);
+            
+            const aQueueLoad = a.assignments[queue] || 0;
+            const bQueueLoad = b.assignments[queue] || 0;
+            const aWeightedLoad = (aQueueLoad * hourlyQuota) / 50;
+            const bWeightedLoad = (bQueueLoad * hourlyQuota) / 50;
+
+            if (difficultyIndex < 3) {
+              if (aHardQueueAssignments !== bHardQueueAssignments) {
+                return aHardQueueAssignments - bHardQueueAssignments;
+              }
+              
+              if (aWeightedLoad !== bWeightedLoad) {
+                return aWeightedLoad - bWeightedLoad;
+              }
+            }
+
+            const aEasyQueueAssignments = QUEUE_DIFFICULTY_ORDER.slice(3)
+              .reduce((sum, q) => sum + (a.assignments[q] || 0), 0);
+            const bEasyQueueAssignments = QUEUE_DIFFICULTY_ORDER.slice(3)
+              .reduce((sum, q) => sum + (b.assignments[q] || 0), 0);
+
+            if (difficultyIndex >= 3) {
+              if (aEasyQueueAssignments !== bEasyQueueAssignments) {
+                return aEasyQueueAssignments - bEasyQueueAssignments;
+              }
+            }
+
+            const quotaFactor = 50 / hourlyQuota;
+            const aTotalWeighted = a.total * quotaFactor;
+            const bTotalWeighted = b.total * quotaFactor;
+
+            if (Math.abs(aTotalWeighted - bTotalWeighted) > 0.1) {
+              return aTotalWeighted - bTotalWeighted;
+            }
+
+            if (a.total !== b.total) {
+              return a.total - b.total;
+            }
+
+            return Math.random() - 0.5;
+          });
+
+          for (let i = 0; i < queueReq; i++) {
+            const agent = sorted[i];
             if (!agent) break;
-            assigns[q].push(agent.nickname);
+            
+            assigns[queue].push(agent.nickname);
             agentsAssignedThisSlot.push(agent.id);
             
             const original = agentsCopy.find((a) => a.id === agent.id);
             if (original) {
-              original.assignments[q] = (original.assignments[q] || 0) + 1;
+              original.assignments[queue] = (original.assignments[queue] || 0) + 1;
               original.total++;
             }
           }

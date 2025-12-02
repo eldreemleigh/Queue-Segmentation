@@ -15,16 +15,16 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 35691
-externalPort = 5000
-
-[[ports]]
 localPort = 35951
 externalPort = 4200
 
 [[ports]]
 localPort = 39587
 externalPort = 3002
+
+[[ports]]
+localPort = 40939
+externalPort = 5000
 
 [[ports]]
 localPort = 41307
@@ -64,3 +64,4 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0"]
+expertMode = true

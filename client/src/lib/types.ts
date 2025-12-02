@@ -75,3 +75,28 @@ export interface AgentBreakTime {
   agentId: string;
   breaks: BreakSlot[];
 }
+
+export interface QueueQuota {
+  queue: Queue;
+  displayName: string;
+  targetQuota: number;
+  hourlyQuota: number;
+}
+
+export const QUEUE_QUOTAS: QueueQuota[] = [
+  { queue: "SV PGC", displayName: "SHORT_VideoPGC", targetQuota: 400, hourlyQuota: 53 },
+  { queue: "SV NPGC", displayName: "SHORT_Video_NON_PGC", targetQuota: 400, hourlyQuota: 53 },
+  { queue: "LV PGC", displayName: "LONG_Video_PGC", targetQuota: 300, hourlyQuota: 40 },
+  { queue: "LV NPGC", displayName: "LONG_Video_NON_PGC", targetQuota: 300, hourlyQuota: 40 },
+  { queue: "PM PGC", displayName: "PM PGC", targetQuota: 600, hourlyQuota: 80 },
+  { queue: "PM NPGC", displayName: "PM NPGC", targetQuota: 600, hourlyQuota: 80 },
+];
+
+export const QUEUE_DIFFICULTY_ORDER: Queue[] = [
+  "LV PGC",   // Hardest
+  "SV PGC",   // Hard
+  "PM PGC",   // Medium-Hard
+  "LV NPGC",  // Medium
+  "PM NPGC",  // Easy
+  "SV NPGC",  // Easiest
+];
