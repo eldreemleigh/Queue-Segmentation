@@ -206,7 +206,7 @@ export default function HeadcountTable({
                       min={0}
                       max={99}
                       className="w-16 h-9 text-center mx-auto"
-                      value={headcountData[slot]?.[queue] ?? 0}
+                      value={headcountData[slot]?.[queue] === 0 ? "" : (headcountData[slot]?.[queue] ?? "")}
                       onChange={(e) =>
                         onHeadcountChange(slot, queue, parseInt(e.target.value) || 0)
                       }

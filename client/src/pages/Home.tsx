@@ -483,13 +483,18 @@ export default function Home() {
       ...prev,
       [slot]: QUEUES.reduce((acc, q) => ({ ...acc, [q]: 0 }), {}),
     }));
-    setResults((prev) => prev.filter((r) => r.slot !== slot));
+    setResults((prev) => {
+      const filtered = prev.filter((r) => r.slot !== slot);
+      if (filtered.length === 0) {
+        setHasGenerated(false);
+      }
+      return filtered;
+    });
     setLockedSlots((prev) => {
       const updated = new Set(prev);
       updated.delete(slot);
       return updated;
     });
-    setHasGenerated(false);
     toast({
       title: "Time Slot Reset",
       description: `${slot} headcount values have been reset to 0.`,
@@ -607,6 +612,11 @@ export default function Home() {
           assigns[q] = [];
         });
 
+        const agentsAssignedToQueueThisSlot: Record<string, string[]> = {};
+        QUEUES.forEach((q) => {
+          agentsAssignedToQueueThisSlot[q] = [];
+        });
+
         QUEUE_DIFFICULTY_ORDER.forEach((queue) => {
           const queueReq = req[queue] || 0;
           if (queueReq === 0) return;
@@ -617,6 +627,10 @@ export default function Home() {
 
           const unassignedAgents = remainingAgents.filter(
             (a) => !agentsAssignedThisSlot.includes(a.id)
+          );
+
+          const agentsNotInThisQueue = remainingAgents.filter(
+            (a) => !agentsAssignedToQueueThisSlot[queue].includes(a.id)
           );
 
           const sorted = [...unassignedAgents].sort((a, b) => {
@@ -668,17 +682,77 @@ export default function Home() {
             return Math.random() - 0.5;
           });
 
-          for (let i = 0; i < queueReq; i++) {
+          let assigned = 0;
+          for (let i = 0; i < sorted.length && assigned < queueReq; i++) {
             const agent = sorted[i];
             if (!agent) break;
             
             assigns[queue].push(agent.nickname);
             agentsAssignedThisSlot.push(agent.id);
+            agentsAssignedToQueueThisSlot[queue].push(agent.id);
             
             const original = agentsCopy.find((a) => a.id === agent.id);
             if (original) {
               original.assignments[queue] = (original.assignments[queue] || 0) + 1;
               original.total++;
+            }
+            assigned++;
+          }
+
+          if (assigned < queueReq) {
+            const alreadyAssignedButNotToThisQueue = agentsNotInThisQueue.filter(
+              (a) => agentsAssignedThisSlot.includes(a.id)
+            );
+
+            const sortedFallback = [...alreadyAssignedButNotToThisQueue].sort((a, b) => {
+              const aQueueLoad = a.assignments[queue] || 0;
+              const bQueueLoad = b.assignments[queue] || 0;
+              if (aQueueLoad !== bQueueLoad) return aQueueLoad - bQueueLoad;
+              if (a.total !== b.total) return a.total - b.total;
+              return Math.random() - 0.5;
+            });
+
+            for (let i = 0; i < sortedFallback.length && assigned < queueReq; i++) {
+              const agent = sortedFallback[i];
+              if (!agent) break;
+              
+              assigns[queue].push(agent.nickname);
+              agentsAssignedToQueueThisSlot[queue].push(agent.id);
+              
+              const original = agentsCopy.find((a) => a.id === agent.id);
+              if (original) {
+                original.assignments[queue] = (original.assignments[queue] || 0) + 1;
+                original.total++;
+              }
+              assigned++;
+            }
+          }
+
+          if (assigned < queueReq) {
+            const sortedLastResort = [...remainingAgents]
+              .sort((a, b) => {
+                const aAlreadyInQueue = agentsAssignedToQueueThisSlot[queue].includes(a.id) ? 1 : 0;
+                const bAlreadyInQueue = agentsAssignedToQueueThisSlot[queue].includes(b.id) ? 1 : 0;
+                if (aAlreadyInQueue !== bAlreadyInQueue) return aAlreadyInQueue - bAlreadyInQueue;
+                const aQueueLoad = a.assignments[queue] || 0;
+                const bQueueLoad = b.assignments[queue] || 0;
+                if (aQueueLoad !== bQueueLoad) return aQueueLoad - bQueueLoad;
+                return Math.random() - 0.5;
+              });
+
+            for (let i = 0; i < sortedLastResort.length && assigned < queueReq; i++) {
+              const agent = sortedLastResort[i];
+              if (!agent) break;
+              
+              assigns[queue].push(agent.nickname);
+              agentsAssignedToQueueThisSlot[queue].push(agent.id);
+              
+              const original = agentsCopy.find((a) => a.id === agent.id);
+              if (original) {
+                original.assignments[queue] = (original.assignments[queue] || 0) + 1;
+                original.total++;
+              }
+              assigned++;
             }
           }
         });
