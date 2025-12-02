@@ -304,15 +304,11 @@ export default function Home() {
           return {
             ...a,
             status,
-            assignments: {},
-            total: 0,
           };
         }
         return a;
       })
     );
-    setHasGenerated(false);
-    setResults([]);
   };
 
   const handleAddAgent = (agent: Omit<Agent, "id" | "assignments" | "total">) => {
@@ -370,10 +366,11 @@ export default function Home() {
       }))
     );
     setResults([]);
+    setLockedSlots(new Set());
     setHasGenerated(false);
     toast({
       title: "All Statuses Reset",
-      description: "All agents have been set to N/A status.",
+      description: "All agents have been set to N/A status and track record cleared.",
     });
   };
 
@@ -534,6 +531,7 @@ export default function Home() {
 
       const newResults: SegmentationResult[] = [];
       const lockedSlotsArray = Array.from(lockedSlots);
+      const updatedBreakTimes = { ...cleanedBreakTimes };
 
       timeSlots.forEach((slot) => {
         // If this slot is already locked, keep the existing result
@@ -575,6 +573,7 @@ export default function Home() {
 
         let idx = 0;
         const assigns: Record<string, string[]> = {};
+        const agentsAssignedThisSlot: string[] = [];
 
         QUEUES.forEach((q) => {
           assigns[q] = [];
@@ -582,6 +581,7 @@ export default function Home() {
             const agent = sorted[idx++];
             if (!agent) break;
             assigns[q].push(agent.nickname);
+            agentsAssignedThisSlot.push(agent.id);
             
             const original = agentsCopy.find((a) => a.id === agent.id);
             if (original) {
@@ -591,6 +591,28 @@ export default function Home() {
           }
         });
 
+        // Assign break times from unassigned agents
+        const unassignedAgents = availableAgents.filter((a) => !agentsAssignedThisSlot.includes(a.id));
+        
+        if (unassignedAgents.length > 0) {
+          unassignedAgents.forEach((agent) => {
+            if (!updatedBreakTimes[agent.id]) {
+              updatedBreakTimes[agent.id] = { agentId: agent.id, breaks: [] };
+            }
+            
+            const breakId = `break_${agent.id}_${slot}_${Date.now()}`;
+            const [startTime] = slot.split(" - ");
+            const [endTime] = slot.split(" - ").reverse();
+            
+            updatedBreakTimes[agent.id].breaks.push({
+              id: breakId,
+              name: `Break - ${slot}`,
+              start: startTime.trim(),
+              end: endTime.trim(),
+            });
+          });
+        }
+
         newResults.push({
           slot,
           totalRequired: totalReq,
@@ -598,6 +620,8 @@ export default function Home() {
           locked: true,
         });
       });
+
+      setBreakTimes(updatedBreakTimes);
 
       setAgents((prev) =>
         prev.map((agent) => {
