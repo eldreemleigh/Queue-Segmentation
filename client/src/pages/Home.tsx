@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import PageHeader from "@/components/PageHeader";
 import SectionCard from "@/components/SectionCard";
 import AttendanceTable from "@/components/AttendanceTable";
@@ -9,6 +9,7 @@ import SegmentationOutput from "@/components/SegmentationOutput";
 import HistoryTable from "@/components/HistoryTable";
 import ProductivitySection from "@/components/ProductivitySection";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Agent,
   AgentStatus,
@@ -162,103 +163,162 @@ function removeExpiredBreaks(
 
 export default function Home() {
   const { toast } = useToast();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef(true);
   
-  // Load from localStorage or use defaults
-  const [agents, setAgents] = useState<Agent[]>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_agents");
-      return saved ? JSON.parse(saved) : INITIAL_AGENTS;
-    } catch {
-      return INITIAL_AGENTS;
-    }
-  });
-
-  const [teamAvatar, setTeamAvatar] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_teamAvatar");
-      return saved ? saved : "";
-    } catch {
-      return "";
-    }
-  });
-
-  const [productivityImage, setProductivityImage] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_productivityImage");
-      return saved ? saved : "";
-    } catch {
-      return "";
-    }
-  });
-
-  const [productivityQuota, setProductivityQuota] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_productivityQuota");
-      return saved ? Number(saved) : 101;
-    } catch {
-      return 101;
-    }
-  });
-  
-  const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_breakTimes");
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-  
-  const [timeSlots, setTimeSlots] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_timeSlots");
-      return saved ? JSON.parse(saved) : [...DEFAULT_TIME_SLOTS];
-    } catch {
-      return [...DEFAULT_TIME_SLOTS];
-    }
-  });
-  
-  const [headcountData, setHeadcountData] = useState<HeadcountData>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_headcountData");
-      return saved ? JSON.parse(saved) : initHeadcount(DEFAULT_TIME_SLOTS);
-    } catch {
-      return initHeadcount(DEFAULT_TIME_SLOTS);
-    }
-  });
-  
-  const [results, setResults] = useState<SegmentationResult[]>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_results");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  
-  const [hasGenerated, setHasGenerated] = useState(() => {
-    try {
-      const saved = localStorage.getItem("qsg_hasGenerated");
-      return saved ? JSON.parse(saved) : false;
-    } catch {
-      return false;
-    }
-  });
-
-  const [lockedSlots, setLockedSlots] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("qsg_lockedSlots");
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-  
+  const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
+  const [teamAvatar, setTeamAvatar] = useState<string>("");
+  const [productivityImage, setProductivityImage] = useState<string>("");
+  const [productivityQuota, setProductivityQuota] = useState<number>(101);
+  const [breakTimes, setBreakTimes] = useState<Record<string, AgentBreakTime>>({});
+  const [timeSlots, setTimeSlots] = useState<string[]>([...DEFAULT_TIME_SLOTS]);
+  const [headcountData, setHeadcountData] = useState<HeadcountData>(initHeadcount(DEFAULT_TIME_SLOTS));
+  const [results, setResults] = useState<SegmentationResult[]>([]);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  const saveToDatabase = useCallback(async (stateUpdates: Record<string, any>) => {
+    if (isLoadingRef.current) return;
+    try {
+      await apiRequest("PATCH", "/api/state", stateUpdates);
+    } catch (error) {
+      console.error("Failed to save to database:", error);
+    }
+  }, []);
+
+  const debouncedSave = useCallback((stateUpdates: Record<string, any>) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveToDatabase(stateUpdates);
+    }, 500);
+  }, [saveToDatabase]);
+
+  const saveAgentToDatabase = useCallback(async (agent: Agent, operation: "create" | "update" | "delete") => {
+    if (isLoadingRef.current) return;
+    try {
+      if (operation === "create") {
+        await apiRequest("POST", "/api/agents", {
+          name: agent.name,
+          nickname: agent.nickname,
+          restDays: agent.restDays,
+          status: agent.status,
+          assignments: agent.assignments,
+          total: agent.total,
+          avatar: agent.avatar || null,
+        });
+      } else if (operation === "update") {
+        await apiRequest("PATCH", `/api/agents/${agent.id}`, {
+          name: agent.name,
+          nickname: agent.nickname,
+          restDays: agent.restDays,
+          status: agent.status,
+          assignments: agent.assignments,
+          total: agent.total,
+          avatar: agent.avatar || null,
+        });
+      } else if (operation === "delete") {
+        await apiRequest("DELETE", `/api/agents/${agent.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to save agent to database:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadFromDatabase = async () => {
+      try {
+        const [agentsRes, stateRes] = await Promise.all([
+          fetch("/api/agents"),
+          fetch("/api/state"),
+        ]);
+
+        if (agentsRes.ok) {
+          const dbAgents = await agentsRes.json();
+          if (dbAgents && dbAgents.length > 0) {
+            const mappedAgents: Agent[] = dbAgents.map((a: any) => ({
+              id: a.id,
+              name: a.name,
+              nickname: a.nickname,
+              restDays: a.restDays,
+              status: a.status as AgentStatus,
+              assignments: a.assignments || {},
+              total: a.total || 0,
+              avatar: a.avatar,
+            }));
+            setAgents(mappedAgents);
+          } else {
+            for (const agent of INITIAL_AGENTS) {
+              await apiRequest("POST", "/api/agents", {
+                name: agent.name,
+                nickname: agent.nickname,
+                restDays: agent.restDays,
+                status: agent.status,
+                assignments: agent.assignments,
+                total: agent.total,
+              });
+            }
+            const refreshRes = await fetch("/api/agents");
+            if (refreshRes.ok) {
+              const newAgents = await refreshRes.json();
+              const mappedAgents: Agent[] = newAgents.map((a: any) => ({
+                id: a.id,
+                name: a.name,
+                nickname: a.nickname,
+                restDays: a.restDays,
+                status: a.status as AgentStatus,
+                assignments: a.assignments || {},
+                total: a.total || 0,
+                avatar: a.avatar,
+              }));
+              setAgents(mappedAgents);
+            }
+          }
+        }
+
+        if (stateRes.ok) {
+          const state = await stateRes.json();
+          if (state) {
+            if (state.headcountData && Object.keys(state.headcountData).length > 0) {
+              setHeadcountData(state.headcountData);
+            }
+            if (state.timeSlots && state.timeSlots.length > 0) {
+              setTimeSlots(state.timeSlots);
+            }
+            if (state.lockedSlots) {
+              setLockedSlots(new Set(state.lockedSlots));
+            }
+            if (state.segmentationResults) {
+              setResults(state.segmentationResults);
+            }
+            if (state.productivityImage) {
+              setProductivityImage(state.productivityImage);
+            }
+            if (state.productivityQuota !== undefined) {
+              setProductivityQuota(state.productivityQuota);
+            }
+            if (state.hasGenerated === "true") {
+              setHasGenerated(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load from database:", error);
+      } finally {
+        isLoadingRef.current = false;
+        setIsDataLoaded(true);
+      }
+    };
+
+    loadFromDatabase();
+  }, []);
 
   // Check and reset data daily at 10 PM PHT
   useEffect(() => {
-    const checkDailyReset = () => {
+    const checkDailyReset = async () => {
       const now = new Date();
       const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
       const phTime = new Date(utcTime + (8 * 60 * 60 * 1000));
@@ -270,135 +330,160 @@ export default function Home() {
 
       if (phTime.getHours() >= 22 && lastResetDate !== currentDate) {
         localStorage.setItem(lastResetKey, phTime.toISOString());
-        localStorage.removeItem("qsg_agents");
-        localStorage.removeItem("qsg_breakTimes");
-        localStorage.removeItem("qsg_timeSlots");
-        localStorage.removeItem("qsg_headcountData");
-        localStorage.removeItem("qsg_results");
-        localStorage.removeItem("qsg_hasGenerated");
-        localStorage.removeItem("qsg_lockedSlots");
-        localStorage.removeItem("qsg_productivityImage");
-        localStorage.removeItem("qsg_productivityQuota");
+        try {
+          await apiRequest("POST", "/api/state/reset");
+        } catch (error) {
+          console.error("Failed to reset state:", error);
+        }
         window.location.reload();
       }
     };
 
-    const interval = setInterval(checkDailyReset, 60000); // Check every minute
-    checkDailyReset(); // Check on mount
+    const interval = setInterval(checkDailyReset, 60000);
+    checkDailyReset();
     return () => clearInterval(interval);
   }, []);
 
-  // Save to localStorage whenever state changes
+  // Save state changes to database
   useEffect(() => {
-    localStorage.setItem("qsg_agents", JSON.stringify(agents));
-  }, [agents]);
+    if (!isDataLoaded) return;
+    debouncedSave({ timeSlots });
+  }, [timeSlots, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem("qsg_breakTimes", JSON.stringify(breakTimes));
-  }, [breakTimes]);
+    if (!isDataLoaded) return;
+    debouncedSave({ headcountData });
+  }, [headcountData, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem("qsg_timeSlots", JSON.stringify(timeSlots));
-  }, [timeSlots]);
+    if (!isDataLoaded) return;
+    debouncedSave({ segmentationResults: results });
+  }, [results, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem("qsg_headcountData", JSON.stringify(headcountData));
-  }, [headcountData]);
+    if (!isDataLoaded) return;
+    debouncedSave({ hasGenerated: hasGenerated ? "true" : "false" });
+  }, [hasGenerated, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem("qsg_results", JSON.stringify(results));
-  }, [results]);
+    if (!isDataLoaded) return;
+    debouncedSave({ lockedSlots: Array.from(lockedSlots) });
+  }, [lockedSlots, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem("qsg_hasGenerated", JSON.stringify(hasGenerated));
-  }, [hasGenerated]);
+    if (!isDataLoaded) return;
+    debouncedSave({ productivityImage });
+  }, [productivityImage, isDataLoaded, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem("qsg_lockedSlots", JSON.stringify(Array.from(lockedSlots)));
-  }, [lockedSlots]);
-
-  useEffect(() => {
-    localStorage.setItem("qsg_teamAvatar", teamAvatar);
-  }, [teamAvatar]);
-
-  useEffect(() => {
-    localStorage.setItem("qsg_productivityImage", productivityImage);
-  }, [productivityImage]);
-
-  useEffect(() => {
-    localStorage.setItem("qsg_productivityQuota", String(productivityQuota));
-  }, [productivityQuota]);
+    if (!isDataLoaded) return;
+    debouncedSave({ productivityQuota });
+  }, [productivityQuota, isDataLoaded, debouncedSave]);
 
   const handleStatusChange = (agentId: string, status: AgentStatus) => {
-    setAgents((prev) =>
-      prev.map((a) => {
+    setAgents((prev) => {
+      const updated = prev.map((a) => {
         if (a.id === agentId) {
-          return {
-            ...a,
-            status,
-          };
+          const updatedAgent = { ...a, status };
+          saveAgentToDatabase(updatedAgent, "update");
+          return updatedAgent;
         }
         return a;
-      })
-    );
-  };
-
-  const handleAddAgent = (agent: Omit<Agent, "id" | "assignments" | "total">) => {
-    const newAgent: Agent = {
-      ...agent,
-      id: crypto.randomUUID(),
-      assignments: {},
-      total: 0,
-    };
-    setAgents((prev) => [...prev, newAgent]);
-    toast({
-      title: "Agent Added",
-      description: `${agent.nickname} has been added to the roster.`,
+      });
+      return updated;
     });
   };
 
-  const handleDeleteAgent = (agentId: string) => {
+  const handleAddAgent = async (agent: Omit<Agent, "id" | "assignments" | "total">) => {
+    try {
+      const res = await apiRequest("POST", "/api/agents", {
+        name: agent.name,
+        nickname: agent.nickname,
+        restDays: agent.restDays,
+        status: agent.status,
+        assignments: {},
+        total: 0,
+        avatar: agent.avatar || null,
+      });
+      const created = await res.json();
+      const newAgent: Agent = {
+        id: created.id,
+        name: created.name,
+        nickname: created.nickname,
+        restDays: created.restDays,
+        status: created.status as AgentStatus,
+        assignments: created.assignments || {},
+        total: created.total || 0,
+        avatar: created.avatar,
+      };
+      setAgents((prev) => [...prev, newAgent]);
+      toast({
+        title: "Agent Added",
+        description: `${agent.nickname} has been added to the roster.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add agent",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAgent = async (agentId: string) => {
     const agent = agents.find((a) => a.id === agentId);
-    setAgents((prev) => prev.filter((a) => a.id !== agentId));
-    setBreakTimes((prev) => {
-      const { [agentId]: _, ...rest } = prev;
-      return rest;
-    });
-    toast({
-      title: "Agent Removed",
-      description: agent ? `${agent.nickname} has been removed from the roster.` : "Agent removed.",
-    });
+    try {
+      await apiRequest("DELETE", `/api/agents/${agentId}`);
+      setAgents((prev) => prev.filter((a) => a.id !== agentId));
+      setBreakTimes((prev) => {
+        const { [agentId]: _, ...rest } = prev;
+        return rest;
+      });
+      toast({
+        title: "Agent Removed",
+        description: agent ? `${agent.nickname} has been removed from the roster.` : "Agent removed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete agent",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditAgent = (agentId: string, updatedAgent: Omit<Agent, "id" | "assignments" | "total" | "status">) => {
-    setAgents((prev) =>
-      prev.map((a) => {
+    setAgents((prev) => {
+      const updated = prev.map((a) => {
         if (a.id === agentId) {
-          return {
-            ...a,
-            ...updatedAgent,
-          };
+          const newAgent = { ...a, ...updatedAgent };
+          saveAgentToDatabase(newAgent, "update");
+          return newAgent;
         }
         return a;
-      })
-    );
+      });
+      return updated;
+    });
     toast({
       title: "Agent Updated",
       description: `${updatedAgent.nickname} has been updated.`,
     });
   };
 
-  const handleResetAllStatuses = () => {
-    setAgents((prev) =>
-      prev.map((a) => ({
-        ...a,
-        status: "N/A" as AgentStatus,
-        assignments: {},
-        total: 0,
-      }))
-    );
+  const handleResetAllStatuses = async () => {
+    const updatedAgents = agents.map((a) => ({
+      ...a,
+      status: "N/A" as AgentStatus,
+      assignments: {},
+      total: 0,
+    }));
+    setAgents(updatedAgents);
     setResults([]);
     setLockedSlots(new Set());
+    
+    for (const agent of updatedAgents) {
+      await saveAgentToDatabase(agent, "update");
+    }
     setHasGenerated(false);
     toast({
       title: "All Statuses Reset",

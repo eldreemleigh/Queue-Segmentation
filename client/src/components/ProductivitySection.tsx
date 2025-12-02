@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Upload, Clipboard, Image, Target, TrendingUp, ArrowRight, ClipboardList } from "lucide-react";
-import { QUEUE_QUOTAS } from "@/lib/types";
+import { Trash2, Upload, Clipboard, Image, Target, TrendingUp, ArrowRight } from "lucide-react";
 
 interface ProductivitySectionProps {
   productivityImage: string;
@@ -166,51 +165,6 @@ export default function ProductivitySection({
             </div>
           </div>
 
-          <div className="mt-6" data-testid="queue-quota-table">
-            <div className="flex items-center gap-2 mb-3">
-              <ClipboardList className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold text-foreground">Queue Quotas</h3>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              Target and hourly quotas used for agent assignment weighting
-            </p>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Queue Type</th>
-                    <th className="text-center py-2 px-3 font-semibold text-muted-foreground">Target Quota</th>
-                    <th className="text-center py-2 px-3 font-semibold text-muted-foreground">Hourly Quota</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {QUEUE_QUOTAS.map((quota) => (
-                    <tr 
-                      key={quota.queue} 
-                      className="border-b border-border/50 hover-elevate"
-                      data-testid={`row-quota-${quota.queue.replace(/\s+/g, "-").toLowerCase()}`}
-                    >
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{quota.displayName}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {quota.queue}
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="text-center py-2 px-3">
-                        <span className="font-semibold text-primary">{quota.targetQuota}</span>
-                      </td>
-                      <td className="text-center py-2 px-3">
-                        <span className="font-semibold text-primary">{quota.hourlyQuota}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
         <div className="space-y-4">

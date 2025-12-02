@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { AlertTriangle, Users, Lock, Copy } from "lucide-react";
+import { useRef, useState, useCallback } from "react";
+import { AlertTriangle, Users, Lock, Copy, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,7 +24,9 @@ export default function SegmentationOutput({
   hasGenerated,
 }: SegmentationOutputProps) {
   const tableRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
   const [isCopying, setIsCopying] = useState(false);
+  const [copyingSlot, setCopyingSlot] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleCopyAsImage = async () => {
@@ -66,6 +68,119 @@ export default function SegmentationOutput({
       setIsCopying(false);
     }
   };
+
+  const handleCopyRowAsImage = useCallback(async (slot: string, result: SegmentationResult) => {
+    setCopyingSlot(slot);
+    try {
+      const container = document.createElement("div");
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      container.style.backgroundColor = "#ffffff";
+      container.style.padding = "16px";
+      container.style.fontFamily = "system-ui, -apple-system, sans-serif";
+      document.body.appendChild(container);
+
+      const headerDiv = document.createElement("div");
+      headerDiv.style.fontWeight = "bold";
+      headerDiv.style.fontSize = "16px";
+      headerDiv.style.marginBottom = "12px";
+      headerDiv.style.color = "#1a1a2e";
+      headerDiv.textContent = `${slot} - Queue Assignments`;
+      container.appendChild(headerDiv);
+
+      const table = document.createElement("table");
+      table.style.borderCollapse = "collapse";
+      table.style.width = "100%";
+      table.style.fontSize = "14px";
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      headerRow.style.backgroundColor = "#f0f4f8";
+      
+      const headers = ["Queue", "Agents Assigned"];
+      headers.forEach((h) => {
+        const th = document.createElement("th");
+        th.style.padding = "10px 16px";
+        th.style.border = "1px solid #e2e8f0";
+        th.style.textAlign = "left";
+        th.style.fontWeight = "600";
+        th.style.color = "#374151";
+        th.textContent = h;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      QUEUES.forEach((queue, idx) => {
+        const agents = result.assignments[queue] || [];
+        if (agents.length > 0) {
+          const tr = document.createElement("tr");
+          tr.style.backgroundColor = idx % 2 === 0 ? "#ffffff" : "#f9fafb";
+          
+          const tdQueue = document.createElement("td");
+          tdQueue.style.padding = "10px 16px";
+          tdQueue.style.border = "1px solid #e2e8f0";
+          tdQueue.style.fontWeight = "500";
+          tdQueue.style.color = "#1f2937";
+          tdQueue.textContent = queue;
+          tr.appendChild(tdQueue);
+
+          const tdAgents = document.createElement("td");
+          tdAgents.style.padding = "10px 16px";
+          tdAgents.style.border = "1px solid #e2e8f0";
+          tdAgents.style.color = "#374151";
+          tdAgents.textContent = agents.join(", ");
+          tr.appendChild(tdAgents);
+
+          tbody.appendChild(tr);
+        }
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+
+      const footerDiv = document.createElement("div");
+      footerDiv.style.marginTop = "12px";
+      footerDiv.style.fontSize = "12px";
+      footerDiv.style.color = "#6b7280";
+      footerDiv.textContent = `Total Required: ${result.totalRequired} agents`;
+      container.appendChild(footerDiv);
+
+      const canvas = await html2canvas(container, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        logging: false,
+      });
+
+      document.body.removeChild(container);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const item = new ClipboardItem({ "image/png": blob });
+          navigator.clipboard.write([item]).then(() => {
+            toast({
+              title: "Success",
+              description: `${slot} assignments copied as image`,
+            });
+          }).catch(() => {
+            toast({
+              title: "Error",
+              description: "Failed to copy image",
+              variant: "destructive",
+            });
+          });
+        }
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to capture hourly output",
+        variant: "destructive",
+      });
+    } finally {
+      setCopyingSlot(null);
+    }
+  }, [toast]);
 
   if (!hasGenerated) {
     return (
@@ -140,6 +255,17 @@ export default function SegmentationOutput({
                   <div className="flex items-center gap-2">
                     {result.locked && <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />}
                     {result.slot}
+                    <Button
+                      onClick={() => handleCopyRowAsImage(result.slot, result)}
+                      disabled={copyingSlot === result.slot}
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="Copy as Image"
+                      data-testid={`button-copy-row-${result.slot}`}
+                    >
+                      <Image className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </TableCell>
                 <TableCell className="text-center font-semibold border-r-2 border-border/70" data-testid={`text-total-req-${result.slot}`}>
