@@ -4,8 +4,12 @@
 A queue segmentation generator application for Team Abbey that automatically assigns agents to different queues based on attendance, break times, headcount requirements, and productivity metrics. The system provides fair, randomized hourly segmentation while considering queue difficulty rankings and productivity quotas.
 
 ## Recent Changes
-- **December 2024**: Added Team Productivity section with queue quotas table
-  - Added target quota and hourly quota display for all 6 queue types
+- **December 2024**: Enhanced reset and screenshot functionality
+  - Reset button now clears queue time slots in addition to headcount values
+  - Screenshot exports now display queue schedule times alongside agent assignments
+  - Queue times show custom times if configured, otherwise default to slot times
+  - Deep copy mechanism for queueTimeSlots to prevent shared reference issues
+  - Added Team Productivity section with queue quotas table
   - Integrated quota-based weighting into segmentation algorithm
   - Queue difficulty ranking: LV PGC (Hardest) → SV PGC → PM PGC → LV NPGC → PM NPGC → SV NPGC (Easiest)
   - Abbeyngers logo set as permanent team logo
