@@ -100,10 +100,30 @@ export default function SegmentationOutput({
           queueLabel.style.fontSize = "11px";
           queueLabel.style.fontWeight = "600";
           queueLabel.style.color = "#6b7280";
-          queueLabel.style.marginBottom = "6px";
+          queueLabel.style.marginBottom = "2px";
           queueLabel.style.textTransform = "uppercase";
           queueLabel.textContent = queue;
           queueDiv.appendChild(queueLabel);
+
+          const queueTimeSlot = result.queueTimeSlots?.[queue];
+          if (queueTimeSlot) {
+            const timeDiv = document.createElement("div");
+            timeDiv.style.fontSize = "10px";
+            timeDiv.style.color = "#0d9488";
+            timeDiv.style.marginBottom = "6px";
+            timeDiv.style.fontWeight = "500";
+            timeDiv.textContent = `${queueTimeSlot.startTime} - ${queueTimeSlot.endTime}`;
+            queueDiv.appendChild(timeDiv);
+          } else {
+            const defaultSlotTimes = result.slot.split(" - ");
+            const timeDiv = document.createElement("div");
+            timeDiv.style.fontSize = "10px";
+            timeDiv.style.color = "#0d9488";
+            timeDiv.style.marginBottom = "6px";
+            timeDiv.style.fontWeight = "500";
+            timeDiv.textContent = `${defaultSlotTimes[0].trim()} - ${defaultSlotTimes[1].trim()}`;
+            queueDiv.appendChild(timeDiv);
+          }
 
           const agentsDiv = document.createElement("div");
           agentsDiv.style.fontSize = "13px";
@@ -212,11 +232,31 @@ export default function SegmentationOutput({
           queueLabel.style.fontSize = "11px";
           queueLabel.style.fontWeight = "700";
           queueLabel.style.color = "#64748b";
-          queueLabel.style.marginBottom = "8px";
+          queueLabel.style.marginBottom = "2px";
           queueLabel.style.textTransform = "uppercase";
           queueLabel.style.letterSpacing = "0.5px";
           queueLabel.textContent = queue;
           queueCard.appendChild(queueLabel);
+
+          const queueTimeSlot = result.queueTimeSlots?.[queue];
+          if (queueTimeSlot) {
+            const timeDiv = document.createElement("div");
+            timeDiv.style.fontSize = "10px";
+            timeDiv.style.color = "#0d9488";
+            timeDiv.style.marginBottom = "8px";
+            timeDiv.style.fontWeight = "500";
+            timeDiv.textContent = `${queueTimeSlot.startTime} - ${queueTimeSlot.endTime}`;
+            queueCard.appendChild(timeDiv);
+          } else {
+            const defaultSlotTimes = slot.split(" - ");
+            const timeDiv = document.createElement("div");
+            timeDiv.style.fontSize = "10px";
+            timeDiv.style.color = "#0d9488";
+            timeDiv.style.marginBottom = "8px";
+            timeDiv.style.fontWeight = "500";
+            timeDiv.textContent = `${defaultSlotTimes[0].trim()} - ${defaultSlotTimes[1].trim()}`;
+            queueCard.appendChild(timeDiv);
+          }
 
           queueAgents.forEach((agent) => {
             const agentDiv = document.createElement("div");

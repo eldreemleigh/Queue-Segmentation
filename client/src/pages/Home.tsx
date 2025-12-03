@@ -600,6 +600,10 @@ export default function Home() {
       ...prev,
       [slot]: QUEUES.reduce((acc, q) => ({ ...acc, [q]: 0 }), {}),
     }));
+    setQueueTimeSlots((prev) => ({
+      ...prev,
+      [slot]: {},
+    }));
     setResults((prev) => {
       const filtered = prev.filter((r) => r.slot !== slot);
       if (filtered.length === 0) {
@@ -614,7 +618,7 @@ export default function Home() {
     });
     toast({
       title: "Time Slot Reset",
-      description: `${slot} headcount values have been reset to 0.`,
+      description: `${slot} headcount and queue times have been reset.`,
     });
   };
 
@@ -900,6 +904,7 @@ export default function Home() {
           slot,
           totalRequired: totalReq,
           assignments: assigns,
+          queueTimeSlots: queueTimeSlots[slot] ? JSON.parse(JSON.stringify(queueTimeSlots[slot])) : {},
           locked: true,
         });
       });
