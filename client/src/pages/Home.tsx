@@ -846,7 +846,7 @@ export default function Home() {
           return;
         }
 
-        const req = headcountData[slot];
+        const req = headcountData[slot] || {};
         const totalReq = QUEUES.reduce((sum, q) => sum + (req[q] || 0), 0);
 
         if (totalReq === 0) {
