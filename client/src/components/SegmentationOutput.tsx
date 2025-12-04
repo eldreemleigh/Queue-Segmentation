@@ -520,18 +520,24 @@ export default function SegmentationOutput({
             </div>
             <div>
               <Label className="text-sm font-medium">Add Agent</Label>
-              <Select onValueChange={handleAddAgentToEdit}>
-                <SelectTrigger className="mt-2" data-testid="select-add-agent">
-                  <SelectValue placeholder="Select an agent to add" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableAgentsForEdit().map((agent) => (
-                    <SelectItem key={agent.id} value={agent.nickname}>
-                      {agent.nickname}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {getAvailableAgentsForEdit().length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No available agents. Only agents with PRESENT status can be added.
+                </p>
+              ) : (
+                <Select onValueChange={handleAddAgentToEdit} key={JSON.stringify(editingAgents)}>
+                  <SelectTrigger className="mt-2" data-testid="select-add-agent">
+                    <SelectValue placeholder="Select an agent to add" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableAgentsForEdit().map((agent) => (
+                      <SelectItem key={agent.id} value={agent.nickname}>
+                        {agent.nickname}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

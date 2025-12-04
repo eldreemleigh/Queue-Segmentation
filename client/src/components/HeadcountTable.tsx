@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2, Copy } from "lucide-react";
+import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2, Copy, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,8 @@ interface HeadcountTableProps {
   onMoveSlotDown: (slot: string) => void;
   onEditTimeSlot: (oldSlot: string, newSlot: string) => void;
   onDuplicateTimeSlot: (slot: string) => void;
+  onGenerateSegmentation?: () => void;
+  isGenerating?: boolean;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -56,6 +58,8 @@ export default function HeadcountTable({
   onMoveSlotDown,
   onEditTimeSlot,
   onDuplicateTimeSlot,
+  onGenerateSegmentation,
+  isGenerating = false,
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -328,6 +332,28 @@ export default function HeadcountTable({
                     );
                   })}
                 </div>
+                {onGenerateSegmentation && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      onClick={onGenerateSegmentation}
+                      disabled={isGenerating || getSlotTotal(slot) === 0}
+                      className="w-full h-10 bg-success hover:bg-success/90 text-success-foreground"
+                      data-testid={`button-generate-slot-${slot}`}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Generate Segmentation
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

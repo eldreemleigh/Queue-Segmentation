@@ -4,7 +4,6 @@ import SectionCard from "@/components/SectionCard";
 import AttendanceTable from "@/components/AttendanceTable";
 import BreakTimesTable from "@/components/BreakTimesTable";
 import HeadcountTable from "@/components/HeadcountTable";
-import GenerateButton from "@/components/GenerateButton";
 import SegmentationOutput from "@/components/SegmentationOutput";
 import HistoryTable from "@/components/HistoryTable";
 import ProductivitySection from "@/components/ProductivitySection";
@@ -813,10 +812,11 @@ export default function Home() {
       
       const presentAgents = agents.filter((a) => a.status === "PRESENT");
       
+      // Preserve existing assignment counts - only accumulate, don't reset
       const agentsCopy = presentAgents.map((a) => ({
         ...a,
-        assignments: {} as Record<string, number>,
-        total: 0,
+        assignments: { ...a.assignments } as Record<string, number>,
+        total: a.total || 0,
       }));
 
       const newResults: SegmentationResult[] = [];
@@ -1229,6 +1229,8 @@ export default function Home() {
             onMoveSlotDown={handleMoveSlotDown}
             onEditTimeSlot={handleEditTimeSlot}
             onDuplicateTimeSlot={handleDuplicateTimeSlot}
+            onGenerateSegmentation={generateSegmentation}
+            isGenerating={isGenerating}
           />
         </SectionCard>
 
@@ -1240,10 +1242,6 @@ export default function Home() {
             onAgentProductivityChange={handleAgentProductivityChange}
           />
         </SectionCard>
-
-        <div className="mb-8">
-          <GenerateButton onClick={generateSegmentation} isLoading={isGenerating} />
-        </div>
 
         <SectionCard sectionNumber={5} title="Segmentation Output">
           <SegmentationOutput 
