@@ -596,6 +596,52 @@ export default function Home() {
   };
 
   const handleResetTimeSlot = (slot: string) => {
+    // Find the result for this slot to get agent assignments
+    const slotResult = results.find((r) => r.slot === slot);
+
+    // Decrement agent assignments if the slot had results
+    if (slotResult && slotResult.assignments) {
+      const agentsToUpdate: Agent[] = [];
+
+      // Iterate through each queue and its assigned agents
+      QUEUES.forEach((queue) => {
+        const assignedNicknames = slotResult.assignments[queue] || [];
+        assignedNicknames.forEach((nickname) => {
+          // Find the agent by nickname
+          const agent = agents.find((a) => a.nickname === nickname);
+          if (agent) {
+            // Check if we already have this agent in the update list
+            let agentToUpdate = agentsToUpdate.find((a) => a.id === agent.id);
+            if (!agentToUpdate) {
+              // Clone the agent for updating
+              agentToUpdate = { ...agent, assignments: { ...agent.assignments } };
+              agentsToUpdate.push(agentToUpdate);
+            }
+
+            // Decrement the queue-specific assignment count
+            agentToUpdate.assignments[queue] = Math.max((agentToUpdate.assignments[queue] || 0) - 1, 0);
+            // Decrement total
+            agentToUpdate.total = Math.max(agentToUpdate.total - 1, 0);
+          }
+        });
+      });
+
+      // Update all affected agents
+      if (agentsToUpdate.length > 0) {
+        setAgents((prev) =>
+          prev.map((agent) => {
+            const updated = agentsToUpdate.find((a) => a.id === agent.id);
+            return updated || agent;
+          })
+        );
+
+        // Save to database
+        agentsToUpdate.forEach((agent) => {
+          saveAgentToDatabase(agent, "update");
+        });
+      }
+    }
+
     setHeadcountData((prev) => ({
       ...prev,
       [slot]: QUEUES.reduce((acc, q) => ({ ...acc, [q]: 0 }), {}),
@@ -648,7 +694,7 @@ export default function Home() {
 
   const handleEditTimeSlot = (oldSlot: string, newSlot: string) => {
     if (oldSlot === newSlot || timeSlots.includes(newSlot)) return;
-    
+
     setTimeSlots((prev) => prev.map((s) => (s === oldSlot ? newSlot : s)));
     setHeadcountData((prev) => {
       const { [oldSlot]: oldData, ...rest } = prev;
@@ -672,6 +718,92 @@ export default function Home() {
     });
   };
 
+  const handleDuplicateTimeSlot = (slot: string) => {
+    const parts = slot.split(" - ");
+    if (parts.length !== 2) return;
+
+    const endTime = parts[1].trim();
+    const endMatch = endTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!endMatch) return;
+
+    let endHour = parseInt(endMatch[1], 10);
+    const endMinute = parseInt(endMatch[2], 10);
+    const endPeriod = endMatch[3].toUpperCase();
+
+    let newStartHour = endHour;
+    let newStartMinute = endMinute;
+    let newStartPeriod = endPeriod;
+
+    newStartMinute += 30;
+    if (newStartMinute >= 60) {
+      newStartMinute -= 60;
+      newStartHour += 1;
+      if (newStartHour === 12 && newStartPeriod === "AM") {
+        newStartPeriod = "PM";
+      } else if (newStartHour > 12) {
+        newStartHour -= 12;
+      } else if (newStartHour === 13) {
+        newStartHour = 1;
+        newStartPeriod = "PM";
+      }
+    }
+
+    let newEndHour = newStartHour;
+    let newEndMinute = newStartMinute;
+    let newEndPeriod = newStartPeriod;
+
+    newEndMinute += 30;
+    if (newEndMinute >= 60) {
+      newEndMinute -= 60;
+      newEndHour += 1;
+      if (newEndHour === 12 && newEndPeriod === "AM") {
+        newEndPeriod = "PM";
+      } else if (newEndHour > 12) {
+        newEndHour -= 12;
+      } else if (newEndHour === 13) {
+        newEndHour = 1;
+        newEndPeriod = "PM";
+      }
+    }
+
+    const formatTime = (hour: number, minute: number, period: string) => {
+      return `${hour}:${minute.toString().padStart(2, "0")} ${period}`;
+    };
+
+    const newSlot = `${formatTime(newStartHour, newStartMinute, newStartPeriod)} - ${formatTime(newEndHour, newEndMinute, newEndPeriod)}`;
+
+    if (timeSlots.includes(newSlot)) {
+      toast({
+        title: "Cannot Duplicate",
+        description: `Time slot ${newSlot} already exists.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sourceIndex = timeSlots.indexOf(slot);
+    const newTimeSlots = [...timeSlots];
+    newTimeSlots.splice(sourceIndex + 1, 0, newSlot);
+    setTimeSlots(newTimeSlots);
+
+    setHeadcountData((prev) => ({
+      ...prev,
+      [newSlot]: { ...prev[slot] },
+    }));
+
+    if (queueTimeSlots[slot]) {
+      setQueueTimeSlots((prev) => ({
+        ...prev,
+        [newSlot]: JSON.parse(JSON.stringify(prev[slot])),
+      }));
+    }
+
+    toast({
+      title: "Time Slot Duplicated",
+      description: `Created ${newSlot} from ${slot}.`,
+    });
+  };
+
   const generateSegmentation = () => {
     setIsGenerating(true);
     
@@ -691,11 +823,26 @@ export default function Home() {
       const lockedSlotsArray = Array.from(lockedSlots);
       const updatedBreakTimes = { ...cleanedBreakTimes };
 
+      // Track previous slot assignments for rotation logic
+      let previousSlotAssignments: Record<string, string> = {}; // agentId -> queue
+
       timeSlots.forEach((slot) => {
         // If this slot is already locked, keep the existing result
         const existingLocked = results.find((r) => r.slot === slot && r.locked);
         if (existingLocked) {
           newResults.push(existingLocked);
+
+          // Update previous slot assignments for rotation tracking
+          QUEUES.forEach((queue) => {
+            const assignedNicknames = existingLocked.assignments[queue] || [];
+            assignedNicknames.forEach((nickname) => {
+              const agent = agentsCopy.find((a) => a.nickname === nickname);
+              if (agent) {
+                previousSlotAssignments[agent.id] = queue;
+              }
+            });
+          });
+
           return;
         }
 
@@ -755,13 +902,21 @@ export default function Home() {
           );
 
           const sorted = [...unassignedAgents].sort((a, b) => {
+            // Rotation logic: Prioritize agents who were NOT in this queue in the previous slot
+            const aWasInThisQueue = previousSlotAssignments[a.id] === queue ? 1 : 0;
+            const bWasInThisQueue = previousSlotAssignments[b.id] === queue ? 1 : 0;
+
+            if (aWasInThisQueue !== bWasInThisQueue) {
+              return aWasInThisQueue - bWasInThisQueue; // Prefer agents NOT in this queue previously
+            }
+
             const aHardQueueAssignments = QUEUE_DIFFICULTY_ORDER.slice(0, 3)
               .reduce((sum, q) => sum + (a.assignments[q] || 0), 0);
             const bHardQueueAssignments = QUEUE_DIFFICULTY_ORDER.slice(0, 3)
               .reduce((sum, q) => sum + (b.assignments[q] || 0), 0);
 
             const difficultyIndex = QUEUE_DIFFICULTY_ORDER.indexOf(queue);
-            
+
             const aQueueLoad = a.assignments[queue] || 0;
             const bQueueLoad = b.assignments[queue] || 0;
             const aWeightedLoad = (aQueueLoad * hourlyQuota) / 50;
@@ -771,7 +926,7 @@ export default function Home() {
               if (aHardQueueAssignments !== bHardQueueAssignments) {
                 return aHardQueueAssignments - bHardQueueAssignments;
               }
-              
+
               if (aWeightedLoad !== bWeightedLoad) {
                 return aWeightedLoad - bWeightedLoad;
               }
@@ -878,19 +1033,30 @@ export default function Home() {
           }
         });
 
+        // Update previous slot assignments for rotation tracking in next slot
+        QUEUES.forEach((queue) => {
+          const assignedNicknames = assigns[queue] || [];
+          assignedNicknames.forEach((nickname) => {
+            const agent = agentsCopy.find((a) => a.nickname === nickname);
+            if (agent) {
+              previousSlotAssignments[agent.id] = queue;
+            }
+          });
+        });
+
         // Assign break times from unassigned agents
         const unassignedAgents = availableAgents.filter((a) => !agentsAssignedThisSlot.includes(a.id));
-        
+
         if (unassignedAgents.length > 0) {
           unassignedAgents.forEach((agent) => {
             if (!updatedBreakTimes[agent.id]) {
               updatedBreakTimes[agent.id] = { agentId: agent.id, breaks: [] };
             }
-            
+
             const breakId = `break_${agent.id}_${slot}_${Date.now()}`;
             const [startTime] = slot.split(" - ");
             const [endTime] = slot.split(" - ").reverse();
-            
+
             updatedBreakTimes[agent.id].breaks.push({
               id: breakId,
               name: `Break - ${slot}`,
@@ -1062,6 +1228,7 @@ export default function Home() {
             onMoveSlotUp={handleMoveSlotUp}
             onMoveSlotDown={handleMoveSlotDown}
             onEditTimeSlot={handleEditTimeSlot}
+            onDuplicateTimeSlot={handleDuplicateTimeSlot}
           />
         </SectionCard>
 

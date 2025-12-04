@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2 } from "lucide-react";
+import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,7 @@ interface HeadcountTableProps {
   onMoveSlotUp: (slot: string) => void;
   onMoveSlotDown: (slot: string) => void;
   onEditTimeSlot: (oldSlot: string, newSlot: string) => void;
+  onDuplicateTimeSlot: (slot: string) => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -54,6 +55,7 @@ export default function HeadcountTable({
   onMoveSlotUp,
   onMoveSlotDown,
   onEditTimeSlot,
+  onDuplicateTimeSlot,
 }: HeadcountTableProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -252,6 +254,16 @@ export default function HeadcountTable({
                     <span className="text-sm font-medium text-muted-foreground mr-2">
                       Total: <span className="text-foreground font-semibold" data-testid={`text-total-${slot}`}>{getSlotTotal(slot)}</span>
                     </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={() => onDuplicateTimeSlot(slot)}
+                      data-testid={`button-duplicate-slot-${slot}`}
+                      title="Duplicate this time slot"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
