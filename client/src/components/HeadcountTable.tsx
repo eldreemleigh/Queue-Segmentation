@@ -249,15 +249,11 @@ export default function HeadcountTable({
                     >
                       <GripVertical className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span data-testid={`text-timeslot-${slot}`}>{slot}</span>
-                    </CardTitle>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-medium text-muted-foreground mr-2">
+                    <span className="text-sm font-medium text-muted-foreground">
                       Total: <span className="text-foreground font-semibold" data-testid={`text-total-${slot}`}>{getSlotTotal(slot)}</span>
                     </span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <Button
                       size="icon"
                       variant="ghost"
