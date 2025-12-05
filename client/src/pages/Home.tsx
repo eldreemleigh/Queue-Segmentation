@@ -581,13 +581,73 @@ export default function Home() {
   };
 
   const handleRemoveTimeSlot = (slot: string) => {
+    // Find the result for this slot to get agent assignments
+    const slotResult = results.find((r) => r.slot === slot);
+
+    // Decrement agent assignments if the slot had results
+    if (slotResult && slotResult.assignments) {
+      const agentsToUpdate: Agent[] = [];
+
+      // Iterate through each queue and its assigned agents
+      QUEUES.forEach((queue) => {
+        const assignedNicknames = slotResult.assignments[queue] || [];
+        assignedNicknames.forEach((nickname) => {
+          // Find the agent by nickname
+          const agent = agents.find((a) => a.nickname === nickname);
+          if (agent) {
+            // Check if we already have this agent in the update list
+            let agentToUpdate = agentsToUpdate.find((a) => a.id === agent.id);
+            if (!agentToUpdate) {
+              // Clone the agent for updating
+              agentToUpdate = { ...agent, assignments: { ...agent.assignments } };
+              agentsToUpdate.push(agentToUpdate);
+            }
+
+            // Decrement the queue-specific assignment count
+            agentToUpdate.assignments[queue] = Math.max((agentToUpdate.assignments[queue] || 0) - 1, 0);
+            // Decrement total
+            agentToUpdate.total = Math.max(agentToUpdate.total - 1, 0);
+          }
+        });
+      });
+
+      // Update all affected agents
+      if (agentsToUpdate.length > 0) {
+        setAgents((prev) =>
+          prev.map((agent) => {
+            const updated = agentsToUpdate.find((a) => a.id === agent.id);
+            return updated || agent;
+          })
+        );
+
+        // Save to database
+        agentsToUpdate.forEach((agent) => {
+          saveAgentToDatabase(agent, "update");
+        });
+      }
+    }
+
     setTimeSlots((prev) => prev.filter((s) => s !== slot));
     setHeadcountData((prev) => {
       const { [slot]: _, ...rest } = prev;
       return rest;
     });
-    setResults([]);
-    setHasGenerated(false);
+    setQueueTimeSlots((prev) => {
+      const { [slot]: _, ...rest } = prev;
+      return rest;
+    });
+    setResults((prev) => {
+      const filtered = prev.filter((r) => r.slot !== slot);
+      if (filtered.length === 0) {
+        setHasGenerated(false);
+      }
+      return filtered;
+    });
+    setLockedSlots((prev) => {
+      const updated = new Set(prev);
+      updated.delete(slot);
+      return updated;
+    });
     toast({
       title: "Time Slot Removed",
       description: `${slot} has been removed from the schedule.`,

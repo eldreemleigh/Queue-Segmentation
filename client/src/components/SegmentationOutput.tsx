@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from "react";
-import { AlertTriangle, Users, Lock, Copy, Image, Edit2, Check, X, Clock } from "lucide-react";
+import { AlertTriangle, Users, Lock, Copy, Image, Edit2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +79,7 @@ export default function SegmentationOutput({
       slotHeader.style.display = "flex";
       slotHeader.style.justifyContent = "space-between";
       slotHeader.style.alignItems = "center";
-      slotHeader.innerHTML = `<span>${result.slot}</span><span style="font-size: 12px; color: #6b7280;">Total: ${result.totalRequired} agents</span>`;
+      slotHeader.innerHTML = `<span style="font-size: 12px; color: #6b7280;">Total: ${result.totalRequired} agents</span>`;
       slotDiv.appendChild(slotHeader);
 
       const queuesContainer = document.createElement("div");
@@ -104,26 +104,6 @@ export default function SegmentationOutput({
           queueLabel.style.textTransform = "uppercase";
           queueLabel.textContent = queue;
           queueDiv.appendChild(queueLabel);
-
-          const queueTimeSlot = result.queueTimeSlots?.[queue];
-          if (queueTimeSlot) {
-            const timeDiv = document.createElement("div");
-            timeDiv.style.fontSize = "10px";
-            timeDiv.style.color = "#0d9488";
-            timeDiv.style.marginBottom = "6px";
-            timeDiv.style.fontWeight = "500";
-            timeDiv.textContent = `${queueTimeSlot.startTime} - ${queueTimeSlot.endTime}`;
-            queueDiv.appendChild(timeDiv);
-          } else {
-            const defaultSlotTimes = result.slot.split(" - ");
-            const timeDiv = document.createElement("div");
-            timeDiv.style.fontSize = "10px";
-            timeDiv.style.color = "#0d9488";
-            timeDiv.style.marginBottom = "6px";
-            timeDiv.style.fontWeight = "500";
-            timeDiv.textContent = `${defaultSlotTimes[0].trim()} - ${defaultSlotTimes[1].trim()}`;
-            queueDiv.appendChild(timeDiv);
-          }
 
           const agentsDiv = document.createElement("div");
           agentsDiv.style.fontSize = "13px";
@@ -198,13 +178,6 @@ export default function SegmentationOutput({
       headerDiv.style.paddingBottom = "12px";
       headerDiv.style.borderBottom = "2px solid #0d9488";
       
-      const timeSpan = document.createElement("span");
-      timeSpan.style.fontWeight = "bold";
-      timeSpan.style.fontSize = "18px";
-      timeSpan.style.color = "#0d9488";
-      timeSpan.textContent = slot;
-      headerDiv.appendChild(timeSpan);
-
       const totalSpan = document.createElement("span");
       totalSpan.style.fontSize = "13px";
       totalSpan.style.color = "#6b7280";
@@ -237,26 +210,6 @@ export default function SegmentationOutput({
           queueLabel.style.letterSpacing = "0.5px";
           queueLabel.textContent = queue;
           queueCard.appendChild(queueLabel);
-
-          const queueTimeSlot = result.queueTimeSlots?.[queue];
-          if (queueTimeSlot) {
-            const timeDiv = document.createElement("div");
-            timeDiv.style.fontSize = "10px";
-            timeDiv.style.color = "#0d9488";
-            timeDiv.style.marginBottom = "8px";
-            timeDiv.style.fontWeight = "500";
-            timeDiv.textContent = `${queueTimeSlot.startTime} - ${queueTimeSlot.endTime}`;
-            queueCard.appendChild(timeDiv);
-          } else {
-            const defaultSlotTimes = slot.split(" - ");
-            const timeDiv = document.createElement("div");
-            timeDiv.style.fontSize = "10px";
-            timeDiv.style.color = "#0d9488";
-            timeDiv.style.marginBottom = "8px";
-            timeDiv.style.fontWeight = "500";
-            timeDiv.textContent = `${defaultSlotTimes[0].trim()} - ${defaultSlotTimes[1].trim()}`;
-            queueCard.appendChild(timeDiv);
-          }
 
           queueAgents.forEach((agent) => {
             const agentDiv = document.createElement("div");
@@ -341,18 +294,9 @@ export default function SegmentationOutput({
 
   const getAvailableAgentsForEdit = () => {
     if (!editingCell) return [];
-    const result = results.find((r) => r.slot === editingCell.slot);
-    if (!result) return agents.filter((a) => a.status === "PRESENT");
-    
-    const alreadyAssignedThisSlot = new Set<string>();
-    Object.entries(result.assignments).forEach(([q, assigned]) => {
-      if (q !== editingCell.queue) {
-        assigned.forEach((a) => alreadyAssignedThisSlot.add(a));
-      }
-    });
     
     return agents.filter(
-      (a) => a.status === "PRESENT" && !alreadyAssignedThisSlot.has(a.nickname) && !editingAgents.includes(a.nickname)
+      (a) => a.status === "PRESENT" && !editingAgents.includes(a.nickname)
     );
   };
 
@@ -414,9 +358,7 @@ export default function SegmentationOutput({
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
                     {result.locked && <Lock className="h-4 w-4 text-warning" />}
-                    <Clock className="h-4 w-4 text-primary" />
-                    <span data-testid={`text-slot-${result.slot}`}>{result.slot}</span>
-                    <Badge variant="secondary" className="ml-2 text-xs">
+                    <Badge variant="secondary" className="text-xs">
                       {result.totalRequired} agents
                     </Badge>
                   </CardTitle>
