@@ -105,6 +105,16 @@ export default function SegmentationOutput({
           queueLabel.textContent = queue;
           queueDiv.appendChild(queueLabel);
 
+          const queueTime = result.queueTimeSlots?.[queue];
+          if (queueTime) {
+            const timeDiv = document.createElement("div");
+            timeDiv.style.fontSize = "10px";
+            timeDiv.style.color = "#9ca3af";
+            timeDiv.style.marginBottom = "4px";
+            timeDiv.textContent = `${queueTime.startTime} - ${queueTime.endTime}`;
+            queueDiv.appendChild(timeDiv);
+          }
+
           const agentsDiv = document.createElement("div");
           agentsDiv.style.fontSize = "13px";
           agentsDiv.style.color = "#1f2937";
@@ -210,6 +220,16 @@ export default function SegmentationOutput({
           queueLabel.style.letterSpacing = "0.5px";
           queueLabel.textContent = queue;
           queueCard.appendChild(queueLabel);
+
+          const queueTime = result.queueTimeSlots?.[queue];
+          if (queueTime) {
+            const timeDiv = document.createElement("div");
+            timeDiv.style.fontSize = "10px";
+            timeDiv.style.color = "#9ca3af";
+            timeDiv.style.marginBottom = "4px";
+            timeDiv.textContent = `${queueTime.startTime} - ${queueTime.endTime}`;
+            queueCard.appendChild(timeDiv);
+          }
 
           queueAgents.forEach((agent) => {
             const agentDiv = document.createElement("div");
