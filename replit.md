@@ -13,6 +13,8 @@ A queue segmentation generator application for Team Abbey that automatically ass
   - Integrated quota-based weighting into segmentation algorithm
   - Queue difficulty ranking: LV PGC (Hardest) → SV PGC → PM PGC → LV NPGC → PM NPGC → SV NPGC (Easiest)
   - Abbeyngers logo set as permanent team logo
+  - Simplified time slot addition: replaced dialog with simple plus icon button that auto-generates next hour slot
+  - Reduced default time slots to 1 row, plus button adds consecutive hour slots automatically
 
 ## Queue Quotas
 | Queue Type | Target Quota | Hourly Quota |

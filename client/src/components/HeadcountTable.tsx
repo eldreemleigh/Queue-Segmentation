@@ -2,13 +2,12 @@ import { useState } from "react";
 import { Plus, Trash2, Clock, RotateCcw, GripVertical, Edit2, Copy, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -61,19 +60,12 @@ export default function HeadcountTable({
   onGenerateSegmentation,
   isGenerating = false,
 }: HeadcountTableProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isQueueTimeDialogOpen, setIsQueueTimeDialogOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [editingQueueSlot, setEditingQueueSlot] = useState<{ slot: string; queue: string } | null>(null);
   const [draggedSlot, setDraggedSlot] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
-  const [startHour, setStartHour] = useState("10");
-  const [startMinute, setStartMinute] = useState("00");
-  const [startPeriod, setStartPeriod] = useState("AM");
-  const [endHour, setEndHour] = useState("11");
-  const [endMinute, setEndMinute] = useState("00");
-  const [endPeriod, setEndPeriod] = useState("AM");
   const [editStartHour, setEditStartHour] = useState("10");
   const [editStartMinute, setEditStartMinute] = useState("00");
   const [editStartPeriod, setEditStartPeriod] = useState("AM");
@@ -96,14 +88,42 @@ export default function HeadcountTable({
     return `${hour}:${minute} ${period}`;
   };
 
-  const handleAddTimeSlot = () => {
-    const start = formatTime(startHour, startMinute, startPeriod);
-    const end = formatTime(endHour, endMinute, endPeriod);
-    const newSlot = `${start} - ${end}`;
+  const handleQuickAddTimeSlot = () => {
+    let newSlot: string;
+    
+    if (timeSlots.length === 0) {
+      newSlot = "10:00 AM - 11:00 AM";
+    } else {
+      const lastSlot = timeSlots[timeSlots.length - 1];
+      const [, endPart] = lastSlot.split(" - ");
+      const [endTime, endPd] = endPart.trim().split(" ");
+      const [endH, endM] = endTime.split(":");
+      
+      let newStartHour = parseInt(endH);
+      let newStartMinute = endM;
+      let newStartPeriod = endPd;
+      
+      let newEndHour = newStartHour + 1;
+      let newEndPeriod = newStartPeriod;
+      
+      if (newEndHour > 12) {
+        newEndHour = 1;
+        if (newStartPeriod === "AM") {
+          newEndPeriod = "PM";
+        } else {
+          newEndPeriod = "AM";
+        }
+      } else if (newEndHour === 12 && newStartPeriod === "AM") {
+        newEndPeriod = "PM";
+      }
+      
+      const newStart = `${newStartHour}:${newStartMinute} ${newStartPeriod}`;
+      const newEnd = `${newEndHour}:${newStartMinute} ${newEndPeriod}`;
+      newSlot = `${newStart} - ${newEnd}`;
+    }
     
     if (!timeSlots.includes(newSlot)) {
       onAddTimeSlot(newSlot);
-      setIsDialogOpen(false);
     }
   };
 
@@ -459,114 +479,16 @@ export default function HeadcountTable({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="gap-2" data-testid="button-add-timeslot">
-            <Plus className="h-4 w-4" />
-            Add Custom Time Slot
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Time Slot</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Start Time</Label>
-              <div className="flex gap-2">
-                <Select value={startHour} onValueChange={setStartHour}>
-                  <SelectTrigger className="w-[70px]" data-testid="select-start-hour">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HOURS.map((h) => (
-                      <SelectItem key={h} value={h.toString()}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="flex items-center text-muted-foreground">:</span>
-                <Select value={startMinute} onValueChange={setStartMinute}>
-                  <SelectTrigger className="w-[70px]" data-testid="select-start-minute">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MINUTES.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={startPeriod} onValueChange={setStartPeriod}>
-                  <SelectTrigger className="w-[70px]" data-testid="select-start-period">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERIODS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>End Time</Label>
-              <div className="flex gap-2">
-                <Select value={endHour} onValueChange={setEndHour}>
-                  <SelectTrigger className="w-[70px]" data-testid="select-end-hour">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HOURS.map((h) => (
-                      <SelectItem key={h} value={h.toString()}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="flex items-center text-muted-foreground">:</span>
-                <Select value={endMinute} onValueChange={setEndMinute}>
-                  <SelectTrigger className="w-[70px]" data-testid="select-end-minute">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MINUTES.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={endPeriod} onValueChange={setEndPeriod}>
-                  <SelectTrigger className="w-[70px]" data-testid="select-end-period">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERIODS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" data-testid="button-cancel-add-slot">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleAddTimeSlot} data-testid="button-submit-add-slot">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Time Slot
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Button 
+        variant="outline" 
+        size="icon"
+        onClick={handleQuickAddTimeSlot}
+        className="gap-2" 
+        data-testid="button-add-timeslot"
+        title="Add new segmentation"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
 
       <Dialog open={isQueueTimeDialogOpen} onOpenChange={setIsQueueTimeDialogOpen}>
         <DialogContent>
